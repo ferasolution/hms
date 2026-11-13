@@ -5,14 +5,16 @@ import { fieldError } from '../lib/api';
 
 /* ---------- Brand ---------- */
 
-export function Logo({ to = '/', className = '' }) {
+export function Logo({ to = '/', className = '', light = false }) {
     return (
         <Link to={to} className={`group inline-flex items-center gap-2.5 ${className}`} aria-label="Fera HealthSphere home">
-            <span className="relative grid h-8 w-8 place-items-center rounded-md bg-ink text-white">
-                <span className="absolute inset-y-1 left-[7px] w-px bg-margin/90" aria-hidden />
-                <span className="font-display text-[15px] font-extrabold leading-none">F</span>
+            <span className="relative grid h-9 w-9 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-[#14b8a6] via-[#0e8a7e] to-[#0a2f3a] text-white shadow-[0_6px_18px_-6px_rgba(20,184,166,.7)] transition-transform duration-300 group-hover:rotate-[8deg]">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M12 4v16M4 12h16" opacity=".35" />
+                    <path d="M2.5 13h4l2-5 3.5 9 2.5-6 1.5 2h5.5" />
+                </svg>
             </span>
-            <span className="font-display text-lg font-bold tracking-tight text-ink-deep">Fera HealthSphere</span>
+            <span className={`font-display text-lg font-extrabold tracking-tight ${light ? 'text-white' : 'text-ink-deep'}`}>Fera <span className={light ? 'text-[#5eead4]' : 'text-ink'}>HealthSphere</span></span>
         </Link>
     );
 }
@@ -20,8 +22,8 @@ export function Logo({ to = '/', className = '' }) {
 /* ---------- Buttons ---------- */
 
 const BUTTON = {
-    primary: 'bg-ink text-white hover:bg-ink-deep shadow-[0_1px_0_0_rgba(18,40,95,.4)]',
-    secondary: 'border border-rule bg-white text-ink-deep hover:border-ink/40 hover:bg-ink-50',
+    primary: 'bg-gradient-to-b from-ink to-[color-mix(in_srgb,var(--color-ink)_80%,black)] text-white shadow-[0_8px_20px_-10px_var(--color-ink)] hover:brightness-110 active:scale-[.98]',
+    secondary: 'border border-rule bg-white text-ink-deep shadow-[0_1px_2px_rgba(10,47,58,.06)] hover:border-ink/40 hover:bg-ink-50 active:scale-[.98]',
     ghost: 'text-graphite hover:bg-ink-50',
     danger: 'bg-margin text-white hover:bg-margin-deep',
 };
@@ -30,7 +32,7 @@ export function Button({ variant = 'primary', size = 'md', icon, iconRight, busy
     const sizes = { sm: 'h-8 px-3 text-sm gap-1.5', md: 'h-10 px-4 gap-2', lg: 'h-12 px-6 text-[17px] gap-2.5' };
     return (
         <As
-            className={`inline-flex select-none items-center justify-center rounded-lg font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${sizes[size]} ${BUTTON[variant]} ${className}`}
+            className={`inline-flex select-none items-center justify-center rounded-xl font-semibold transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60 ${sizes[size]} ${BUTTON[variant]} ${className}`}
             disabled={As === 'button' ? busy || props.disabled : undefined}
             {...props}
         >
@@ -169,7 +171,7 @@ export function SlideOver({ open, onClose, title, description, children, footer 
     if (!open) return null;
     return (
         <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label={title}>
-            <div className="absolute inset-0 bg-ink-deep/30 backdrop-blur-[2px] animate-[fade_.15s_ease-out]" onClick={onClose} />
+            <div className="absolute inset-0 bg-[#06232c]/40 backdrop-blur-sm animate-[fade_.15s_ease-out]" onClick={onClose} />
             <div ref={panel} className="absolute inset-y-0 right-0 flex w-full max-w-lg flex-col bg-paper shadow-2xl animate-[slide-in_.2s_cubic-bezier(.2,.8,.2,1)]">
                 <div className="margin-line flex items-start justify-between gap-4 border-b border-rule bg-white px-6 py-5 pl-8">
                     <div>
@@ -190,8 +192,8 @@ export function ConfirmDialog({ open, title, children, confirmLabel, tone = 'dan
     if (!open) return null;
     return (
         <div className="fixed inset-0 z-50 grid place-items-center p-4" role="alertdialog" aria-modal="true" aria-label={title}>
-            <div className="absolute inset-0 bg-ink-deep/30 backdrop-blur-[2px]" onClick={onClose} />
-            <div className="relative w-full max-w-sm rounded-xl bg-white p-6 shadow-2xl animate-[pop_.15s_ease-out]">
+            <div className="absolute inset-0 bg-[#06232c]/40 backdrop-blur-sm" onClick={onClose} />
+            <div className="relative w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl animate-[pop_.15s_ease-out]">
                 <h2 className="text-lg font-bold">{title}</h2>
                 <div className="mt-2 text-pencil">{children}</div>
                 <div className="mt-6 flex justify-end gap-3">
@@ -221,11 +223,11 @@ export function Menu({ items, label = 'More actions' }) {
         <div ref={ref} className="relative">
             <IconButton icon="more" label={label} aria-expanded={open} onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }} />
             {open && (
-                <div role="menu" className="absolute right-0 z-30 mt-1 w-48 overflow-hidden rounded-lg border border-rule bg-white py-1 shadow-xl animate-[pop_.12s_ease-out]">
+                <div role="menu" className="absolute right-0 z-30 mt-1 w-52 overflow-hidden rounded-xl border border-rule bg-white p-1 shadow-[0_20px_40px_-16px_rgba(6,35,44,.35)] animate-[pop_.12s_ease-out]">
                     {items.filter(Boolean).map((item) => (
                         <button key={item.label} role="menuitem" type="button"
                             onClick={(e) => { e.stopPropagation(); setOpen(false); item.onClick(); }}
-                            className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-[15px] hover:bg-ink-50 ${item.danger ? 'text-margin' : 'text-graphite'}`}>
+                            className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[15px] hover:bg-ink-50 ${item.danger ? 'text-margin' : 'text-graphite'}`}>
                             <Icon name={item.icon} size={17} />
                             {item.label}
                         </button>
@@ -252,7 +254,7 @@ export function ToastProvider({ children }) {
             {children}
             <div className="pointer-events-none fixed inset-x-0 bottom-4 z-[60] flex flex-col items-center gap-2 px-4" aria-live="polite">
                 {toasts.map((t) => (
-                    <div key={t.id} className="pointer-events-auto flex items-center gap-2.5 rounded-lg bg-ink-deep px-4 py-3 text-white shadow-xl animate-[toast_.2s_ease-out]">
+                    <div key={t.id} className="pointer-events-auto flex items-center gap-2.5 rounded-xl bg-[#06232c] px-4 py-3 text-white shadow-[0_20px_40px_-12px_rgba(6,35,44,.6)] ring-1 ring-white/10 animate-[toast_.2s_ease-out]">
                         <Icon name={t.tone === 'error' ? 'alert' : 'check'} size={18} className={t.tone === 'error' ? 'text-[#ffb4ba]' : 'text-[#9fe0b5]'} />
                         <span className="font-bold">{t.message}</span>
                     </div>
@@ -314,8 +316,8 @@ export function Modal({ open, onClose, title, description, children, footer, siz
     const widths = { sm: 'max-w-sm', md: 'max-w-lg', lg: 'max-w-2xl' };
     return (
         <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={title}>
-            <div className="absolute inset-0 bg-ink-deep/30 backdrop-blur-[2px]" onClick={onClose} />
-            <div className={`relative flex max-h-[92vh] w-full flex-col rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl ${widths[size]} animate-[pop_.15s_ease-out]`}>
+            <div className="absolute inset-0 bg-[#06232c]/40 backdrop-blur-sm" onClick={onClose} />
+            <div className={`relative flex max-h-[92vh] w-full flex-col rounded-t-3xl bg-white shadow-[0_40px_90px_-30px_rgba(6,35,44,.55)] sm:rounded-3xl ${widths[size]} animate-[pop_.22s_cubic-bezier(.2,.8,.2,1)]`}>
                 <div className="flex items-start justify-between gap-4 border-b border-rule px-6 py-5">
                     <div>
                         <h2 className="text-xl font-bold">{title}</h2>

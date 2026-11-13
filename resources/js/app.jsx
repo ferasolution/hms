@@ -1,8 +1,5 @@
-import '@fontsource/bricolage-grotesque/latin-500.css';
-import '@fontsource/bricolage-grotesque/latin-700.css';
-import '@fontsource/bricolage-grotesque/latin-800.css';
-import '@fontsource/atkinson-hyperlegible/latin-400.css';
-import '@fontsource/atkinson-hyperlegible/latin-700.css';
+import '@fontsource-variable/plus-jakarta-sans';
+import '@fontsource-variable/inter';
 import { lazy, StrictMode, Suspense, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';

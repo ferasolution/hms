@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { AnimatePresence, motion } from 'motion/react';
 import { api, session } from '../lib/api';
 import { applyBrand, resetBrand } from '../lib/brand';
 import Icon from '../components/Icon';
@@ -94,48 +95,50 @@ export default function TenantLayout() {
     const trialDays = me.tenant.status === 'trial' && me.tenant.trial_ends_at
         ? Math.max(0, Math.ceil((new Date(me.tenant.trial_ends_at) - Date.now()) / 86400000))
         : null;
-    const logo = me.tenant.settings?.logo_url;
 
+    const logo = me.tenant.settings?.logo_url;
     const sidebar = (
-        <div className="flex h-full flex-col">
-            <div className="px-5 pt-6 pb-5">
+        <div className="relative flex h-full flex-col overflow-hidden bg-[#06232c] text-white">
+            <div className="pointer-events-none absolute -top-24 -left-20 h-72 w-72 rounded-full bg-[color-mix(in_srgb,var(--color-ink)_55%,transparent)] blur-[90px]" aria-hidden />
+            <div className="pointer-events-none absolute bottom-0 -right-24 h-64 w-64 rounded-full bg-[#22d3ee]/10 blur-[90px]" aria-hidden />
+            <div className="relative px-5 pt-6 pb-5">
                 <div className="flex items-center gap-3">
                     {logo ? (
-                        <img src={logo} alt="" className="h-10 w-10 shrink-0 rounded-xl bg-white object-contain ring-1 ring-rule" />
+                        <img src={logo} alt="" className="h-11 w-11 shrink-0 rounded-xl bg-white object-contain p-1" />
                     ) : (
-                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-ink text-white">
-                            <Icon name="hospital" size={20} />
+                        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[#2dd4bf] to-[var(--color-ink)] text-white shadow-[0_8px_24px_-8px_rgba(45,212,191,.8)]">
+                            <Icon name="hospital" size={21} />
                         </span>
                     )}
                     <div className="min-w-0">
-                        <p className="truncate font-display text-[17px] leading-tight font-bold text-ink-deep">{me.tenant.name}</p>
-                        <p className="text-sm text-pencil">{TYPE_LABEL[me.tenant.type]}</p>
+                        <p className="truncate font-display text-[16px] leading-tight font-bold text-white">{me.tenant.name}</p>
+                        <p className="text-[13px] text-white/50">{TYPE_LABEL[me.tenant.type] ?? 'Hospital'}</p>
                     </div>
                 </div>
-                <div className="mt-5 flex items-center gap-2">
-                    <button type="button" onClick={() => setSearching(true)}
-                        className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-lg border border-rule bg-paper px-3 text-left text-pencil transition hover:border-ink/40">
-                        <Icon name="search" size={16} />
-                        <span className="flex-1 truncate text-sm">Search</span>
-                        <kbd className="hidden rounded border border-rule bg-white px-1.5 text-[11px] lg:inline">Ctrl K</kbd>
-                    </button>
-                    <div className="hidden lg:block"><NotificationBell tenant={tenant} /></div>
-                </div>
+                <button type="button" onClick={() => setSearching(true)}
+                    className="mt-5 flex h-10 w-full items-center gap-2 rounded-xl bg-white/[.06] px-3 text-left text-white/60 ring-1 ring-white/10 transition hover:bg-white/10 hover:text-white">
+                    <Icon name="search" size={16} />
+                    <span className="flex-1 truncate text-sm">Search patients…</span>
+                    <kbd className="hidden rounded-md bg-white/10 px-1.5 text-[11px] lg:inline">Ctrl K</kbd>
+                </button>
             </div>
 
-            <nav className="flex-1 space-y-5 overflow-y-auto px-3" aria-label="Main">
+            <nav className="relative flex-1 space-y-5 overflow-y-auto px-3 pb-4" aria-label="Main">
                 {groups.map((g, gi) => (
-                    <div key={gi} className="space-y-1">
-                        {g.label && <p className="px-3 pb-1 text-xs font-bold text-pencil/80">{g.label}</p>}
+                    <div key={gi} className="space-y-0.5">
+                        {g.label && <p className="px-3 pb-1.5 text-[11px] font-bold tracking-[.14em] text-white/35 uppercase">{g.label}</p>}
                         {g.links.map((l) => (
                             <NavLink key={l.to} to={l.to} end={l.end}
-                                className={({ isActive }) =>
-                                    `group relative flex items-center gap-3 rounded-lg px-3 py-2.5 font-bold transition-colors ${isActive
-                                        ? 'bg-ink-50 text-ink-deep before:absolute before:inset-y-2 before:-left-3 before:w-[3px] before:rounded-r before:bg-margin'
-                                        : 'text-pencil hover:bg-ink-50/60 hover:text-ink-deep'}`}>
-                                <Icon name={l.icon} size={20} />
-                                <span className="flex-1">{l.label}</span>
-                                {l.badge > 0 && <span className="rounded-full bg-margin px-2 py-0.5 text-xs font-bold text-white tabular-nums">{l.badge}</span>}
+                                className={({ isActive }) => `group relative flex items-center gap-3 rounded-xl px-3 py-2 text-[15px] font-semibold transition-colors ${isActive ? 'text-white' : 'text-white/60 hover:text-white'}`}>
+                                {({ isActive }) => (
+                                    <>
+                                        {isActive && <motion.span layoutId="nav-active" transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                                            className="absolute inset-0 rounded-xl bg-gradient-to-r from-[color-mix(in_srgb,var(--color-ink)_75%,transparent)] to-white/[.06] shadow-[inset_0_0_0_1px_rgba(255,255,255,.08),0_8px_24px_-12px_var(--color-ink)]" />}
+                                        <span className={`relative grid h-7 w-7 place-items-center rounded-lg transition ${isActive ? 'bg-white/15' : 'bg-white/[.04] group-hover:bg-white/10'}`}><Icon name={l.icon} size={18} /></span>
+                                        <span className="relative flex-1">{l.label}</span>
+                                        {l.badge > 0 && <span className="relative rounded-full bg-margin px-2 py-0.5 text-xs font-bold text-white tabular-nums">{l.badge}</span>}
+                                    </>
+                                )}
                             </NavLink>
                         ))}
                     </div>
@@ -143,67 +146,82 @@ export default function TenantLayout() {
             </nav>
 
             {trialDays !== null && isAdmin && (
-                <Link to={`/${tenant}/subscription`} className="mx-3 mb-3 block rounded-xl border border-rule bg-white p-4 transition hover:border-ink/40">
-                    <p className="text-sm font-bold text-graphite">Free trial</p>
-                    <p className="text-sm text-pencil">{trialDays} {trialDays === 1 ? 'day' : 'days'} left on the {me.tenant.plan?.name ?? 'Free'} plan</p>
-                    <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-ink-50">
-                        <div className="h-full rounded-full bg-ink" style={{ width: `${Math.min(100, (trialDays / 14) * 100)}%` }} />
+                <Link to={`/${tenant}/subscription`} className="relative mx-3 mb-3 block rounded-2xl bg-gradient-to-br from-white/[.09] to-white/[.03] p-4 ring-1 ring-white/10 transition hover:ring-white/25">
+                    <p className="text-sm font-bold text-white">Free trial · {trialDays} {trialDays === 1 ? 'day' : 'days'} left</p>
+                    <p className="text-xs text-white/55">Every module is unlocked</p>
+                    <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
+                        <div className="h-full rounded-full bg-gradient-to-r from-[#2dd4bf] to-[#22d3ee]" style={{ width: `${Math.min(100, (trialDays / 14) * 100)}%` }} />
                     </div>
                 </Link>
             )}
 
-            <div className="flex items-center gap-2 border-t border-rule px-3 py-3">
-                <Link to={`/${tenant}/profile`} className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-ink-50/60">
+            <div className="relative flex items-center gap-2 border-t border-white/10 px-3 py-3">
+                <Link to={`/${tenant}/profile`} className="flex min-w-0 flex-1 items-center gap-3 rounded-xl px-2 py-1.5 hover:bg-white/5">
                     <Avatar name={me.user.name} size={36} />
                     <div className="min-w-0">
-                        <p className="truncate font-bold text-graphite">{me.user.name}</p>
-                        <p className="text-sm text-pencil">{ROLE_LABEL[role] ?? role}</p>
+                        <p className="truncate text-sm font-bold text-white">{me.user.name}</p>
+                        <p className="text-xs text-white/50">{ROLE_LABEL[role] ?? role}</p>
                     </div>
                 </Link>
-                <IconButton icon="logout" label="Sign out" onClick={signOut} />
+                <IconButton icon="logout" label="Sign out" onClick={signOut} className="text-white/60 hover:bg-white/10 hover:text-white" />
             </div>
         </div>
     );
 
+    const current = groups.flatMap((g) => g.links).filter((l) => location.pathname === l.to || (!l.end && location.pathname.startsWith(`${l.to}/`)) || (l.end && location.pathname === l.to))
+        .sort((a, b) => b.to.length - a.to.length)[0];
+
     return (
-        <div className="min-h-screen lg:grid lg:grid-cols-[17rem_1fr]">
-            <aside className="sticky top-0 z-30 hidden h-screen border-r border-rule bg-white lg:block print:hidden">{sidebar}</aside>
+        <div className="min-h-screen lg:grid lg:grid-cols-[17.5rem_1fr]">
+            <aside className="sticky top-0 z-30 hidden h-screen lg:block print:hidden">{sidebar}</aside>
 
-            <header className="sticky top-0 z-30 flex items-center justify-between border-b border-rule bg-white/90 px-4 py-3 backdrop-blur lg:hidden print:hidden">
-                <IconButton icon="menu" label="Open menu" onClick={() => setDrawer(true)} />
-                <p className="min-w-0 flex-1 truncate px-3 font-display font-bold text-ink-deep">{me.tenant.name}</p>
-                <IconButton icon="search" label="Search" onClick={() => setSearching(true)} />
-                <NotificationBell tenant={tenant} align="right" />
-                <Link to={`/${tenant}/profile`} aria-label="Your profile" className="relative">
-                    <Avatar name={me.user.name} size={32} />
-                </Link>
-            </header>
-            {drawer && (
-                <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="Menu">
-                    <div className="absolute inset-0 bg-ink-deep/30" onClick={() => setDrawer(false)} />
-                    <aside className="absolute inset-y-0 left-0 w-[19rem] max-w-[85vw] bg-white shadow-2xl animate-[slide-in-left_.2s_ease-out]">
-                        <IconButton icon="x" label="Close menu" className="absolute top-4 right-3" onClick={() => setDrawer(false)} />
-                        {sidebar}
-                    </aside>
-                </div>
-            )}
+            <div className="min-w-0">
+                <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-black/[.04] px-4 py-3 glass sm:px-8 lg:px-12 print:hidden">
+                    <IconButton icon="menu" label="Open menu" className="lg:hidden" onClick={() => setDrawer(true)} />
+                    <div className="min-w-0 flex-1">
+                        <p className="truncate font-display font-bold text-ink-deep lg:hidden">{me.tenant.name}</p>
+                        <p className="hidden items-center gap-2 text-sm text-pencil lg:flex">
+                            <Icon name={current?.icon ?? 'home'} size={16} />
+                            <span className="font-semibold text-graphite">{current?.label ?? 'Overview'}</span>
+                            <span className="text-pencil/50">·</span>
+                            {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+                        </p>
+                    </div>
+                    <IconButton icon="search" label="Search" className="lg:hidden" onClick={() => setSearching(true)} />
+                    <NotificationBell tenant={tenant} align="right" />
+                    <Link to={`/${tenant}/profile`} aria-label="Your profile" className="rounded-full ring-2 ring-white transition hover:ring-ink/30"><Avatar name={me.user.name} size={34} /></Link>
+                </header>
 
-            <SearchPalette open={searching} onClose={() => setSearching(false)} tenant={tenant}
-                pages={groups.flatMap((g) => g.links).map((l) => ({ label: l.label, icon: l.icon, to: l.to })).concat([{ label: 'Your profile', icon: 'user', to: `/${tenant}/profile` }])} />
+                <AnimatePresence>
+                    {drawer && (
+                        <motion.div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="Menu" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                            <div className="absolute inset-0 bg-[#06232c]/50 backdrop-blur-sm" onClick={() => setDrawer(false)} />
+                            <motion.aside initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }} transition={{ type: 'spring', stiffness: 380, damping: 38 }} className="absolute inset-y-0 left-0 w-[19rem] max-w-[85vw] shadow-2xl">
+                                <IconButton icon="x" label="Close menu" className="absolute top-4 right-3 z-10 text-white/70 hover:bg-white/10" onClick={() => setDrawer(false)} />
+                                {sidebar}
+                            </motion.aside>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
-            <main className="min-w-0">
-                <div className="mx-auto max-w-6xl px-4 py-8 sm:px-8 lg:px-12 lg:py-10 print:max-w-none print:p-0">
-                    <Outlet context={ctx} />
-                </div>
-            </main>
+                <SearchPalette open={searching} onClose={() => setSearching(false)} tenant={tenant}
+                    pages={groups.flatMap((g) => g.links).map((l) => ({ label: l.label, icon: l.icon, to: l.to })).concat([{ label: 'Your profile', icon: 'user', to: `/${tenant}/profile` }])} />
+
+                <main className="min-w-0">
+                    <motion.div key={location.pathname} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
+                        className="mx-auto max-w-6xl px-4 py-8 sm:px-8 lg:px-12 lg:py-10 print:max-w-none print:p-0">
+                        <Outlet context={ctx} />
+                    </motion.div>
+                </main>
+            </div>
         </div>
     );
 }
 
 function ShellSkeleton() {
     return (
-        <div className="min-h-screen lg:grid lg:grid-cols-[17rem_1fr]" role="status" aria-label="Loading">
-            <aside className="hidden border-r border-rule bg-white p-5 lg:block">
+        <div className="min-h-screen lg:grid lg:grid-cols-[17.5rem_1fr]" role="status" aria-label="Loading">
+            <aside className="hidden bg-[#06232c] p-5 opacity-95 lg:block [&_.animate-pulse]:bg-white/10">
                 <div className="flex items-center gap-3">
                     <Skeleton className="h-10 w-10 rounded-xl" />
                     <div className="flex-1 space-y-2"><Skeleton className="h-4 w-32" /><Skeleton className="h-3 w-16" /></div>

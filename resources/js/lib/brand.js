@@ -1,12 +1,12 @@
-// Institute colour themes. The whole UI reads --color-ink*, so switching a
-// theme is just three CSS variables. The red margin line always stays.
+// Hospital colour themes. The whole UI reads --color-ink*, so switching a
+// theme is three CSS variables. Keys are kept stable (they are stored in settings).
 export const BRANDS = {
-    ink: { label: 'Ink blue', ink: '#1b3a8c', deep: '#12285f', tint: '#eef3fc' },
-    emerald: { label: 'Emerald', ink: '#17694a', deep: '#0e4430', tint: '#e8f5ee' },
-    plum: { label: 'Plum', ink: '#6b3d8f', deep: '#47265f', tint: '#f4eefa' },
-    teal: { label: 'Teal', ink: '#1d6b78', deep: '#12464f', tint: '#e8f4f6' },
-    maroon: { label: 'Maroon', ink: '#8c1d3a', deep: '#5e1226', tint: '#fbeef1' },
-    slate: { label: 'Slate', ink: '#334155', deep: '#1e293b', tint: '#f1f5f9' },
+    ink: { label: 'Clinical teal', ink: '#0e8a7e', deep: '#0a2f3a', tint: '#e5f5f2' },
+    emerald: { label: 'Emerald', ink: '#15803d', deep: '#0c3320', tint: '#e8f6ed' },
+    plum: { label: 'Violet', ink: '#6d4ad8', deep: '#241a4f', tint: '#f0ecfd' },
+    teal: { label: 'Ocean blue', ink: '#1d6fd8', deep: '#0b2552', tint: '#e8f1fd' },
+    maroon: { label: 'Rose', ink: '#c0265a', deep: '#41101f', tint: '#fdebf1' },
+    slate: { label: 'Graphite', ink: '#334155', deep: '#0f172a', tint: '#eef2f6' },
 };
 
 export function applyBrand(key) {

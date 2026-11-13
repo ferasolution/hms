@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
+import { motion } from 'motion/react';
 import { api } from '../lib/api';
 import { money } from '../lib/format';
 import { ROLE_LABEL, time } from '../lib/hms';
 import Icon from '../components/Icon';
-import { Avatar, Button, Skeleton, useToast } from '../components/ui';
+import { Avatar, Skeleton, useToast } from '../components/ui';
 import Announcements from '../components/Announcements';
 import { AppointmentBadge } from './hospital/Appointments';
 import MyHealth from './hospital/MyHealth';
+
+const TILE_TINTS = ['from-teal-400 to-cyan-600', 'from-violet-400 to-indigo-600', 'from-amber-400 to-orange-600', 'from-emerald-400 to-teal-600'];
 
 function greeting() {
     const h = new Date().getHours();
@@ -56,16 +59,26 @@ export default function Overview() {
 
     return (
         <div>
-            <header className="flex flex-wrap items-end justify-between gap-4">
-                <div>
-                    <p className="text-pencil">{new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })} · {ROLE_LABEL[role]}</p>
-                    <h1 className="mt-1 text-3xl font-extrabold sm:text-4xl">{greeting()}, {firstName}</h1>
+            <motion.header initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.2, 0.8, 0.2, 1] }}
+                className="relative overflow-hidden rounded-[1.75rem] bg-[#06232c] px-6 py-8 text-white shadow-[0_30px_60px_-30px_rgba(6,35,44,.7)] sm:px-10 sm:py-10">
+                <div className="pointer-events-none absolute -top-24 -right-10 h-72 w-72 rounded-full bg-[color-mix(in_srgb,var(--color-ink)_70%,transparent)] blur-[80px] animate-[aurora_14s_ease-in-out_infinite]" aria-hidden />
+                <div className="pointer-events-none absolute -bottom-28 left-1/3 h-64 w-64 rounded-full bg-[#22d3ee]/20 blur-[80px] animate-[aurora_18s_ease-in-out_infinite_reverse]" aria-hidden />
+                <svg viewBox="0 0 600 80" preserveAspectRatio="none" className="pointer-events-none absolute right-0 bottom-2 h-16 w-1/2 opacity-20" aria-hidden>
+                    <motion.path d="M0 50 H220 L235 50 L245 20 L258 72 L270 8 L284 60 L294 50 H420 L430 50 L438 38 L448 58 L456 50 H600" fill="none" stroke="#5eead4" strokeWidth="2"
+                        initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 2.4, ease: 'easeInOut', repeat: Infinity, repeatDelay: 1.5 }} />
+                </svg>
+                <div className="relative flex flex-wrap items-end justify-between gap-6">
+                    <div>
+                        <p className="text-sm font-semibold text-white/60">{new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })} · {ROLE_LABEL[role]}</p>
+                        <h1 className="mt-2 text-3xl font-extrabold text-white sm:text-[2.6rem]">{greeting()}, <span className="text-gradient">{firstName}</span></h1>
+                        <p className="mt-2 max-w-lg text-white/65">{s?.appointments_today ? `${s.appointments_today.waiting ?? 0} waiting now · ${s.appointments_today.total ?? 0} appointments today${s.beds?.total ? ` · ${s.beds.available} beds free` : ''}` : 'Here’s your hospital at a glance.'}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        {['admin', 'receptionist', 'nurse', 'doctor'].includes(role) && <Link to={`/${tenant}/patients?new=1`} className="inline-flex h-11 items-center gap-2 rounded-xl bg-white/10 px-4 font-semibold text-white ring-1 ring-white/15 backdrop-blur transition hover:bg-white/15"><Icon name="plus" size={18} />Register patient</Link>}
+                        {on('appointments') && ['admin', 'receptionist', 'nurse', 'doctor'].includes(role) && <Link to={`/${tenant}/appointments?book=1`} className="inline-flex h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-[#14b8a6] to-[#06b6d4] px-4 font-bold text-white shadow-[0_10px_30px_-10px_rgba(20,184,166,.9)] transition hover:brightness-110"><Icon name="calendar" size={18} />Book appointment</Link>}
+                    </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                    {['admin', 'receptionist', 'nurse', 'doctor'].includes(role) && <Button variant="secondary" as={Link} to={`/${tenant}/patients?new=1`} icon="plus">Register patient</Button>}
-                    {on('appointments') && ['admin', 'receptionist', 'nurse', 'doctor'].includes(role) && <Button as={Link} to={`/${tenant}/appointments?book=1`} icon="calendar">Book appointment</Button>}
-                </div>
-            </header>
+            </motion.header>
 
             {isAdmin && s && remaining > 0 && (
                 <section className="margin-line mt-8 overflow-hidden rounded-2xl border border-rule bg-white" aria-labelledby="gs">
@@ -102,12 +115,16 @@ export default function Overview() {
             )}
 
             <section className="mt-8 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4" aria-label="Summary">
-                {tiles.map((t) => (
-                    <Link key={t.label} to={t.to} className="rounded-2xl border border-rule bg-white p-4 transition hover:border-ink/40 sm:p-5">
-                        <div className="flex items-center gap-2 text-sm text-pencil sm:text-base"><Icon name={t.icon} size={18} /><span className="font-bold">{t.label}</span></div>
-                        {t.value === undefined ? <Skeleton className="mt-3 h-9 w-16" /> : <p className="mt-2 font-display text-3xl font-bold tabular-nums text-ink-deep sm:text-4xl">{t.value}</p>}
-                        {t.sub && <p className="mt-1 hidden text-sm text-pencil sm:block">{t.sub}</p>}
-                    </Link>
+                {tiles.map((t, i) => (
+                    <motion.div key={t.label} initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 + i * 0.07, duration: 0.5, ease: [0.2, 0.8, 0.2, 1] }}>
+                        <Link to={t.to} className="group relative block h-full overflow-hidden rounded-2xl border border-rule bg-white p-4 sm:p-5">
+                            <span className={`absolute -top-8 -right-8 h-24 w-24 rounded-full bg-gradient-to-br ${TILE_TINTS[i % TILE_TINTS.length]} opacity-15 transition duration-500 group-hover:scale-150 group-hover:opacity-25`} aria-hidden />
+                            <span className={`relative grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br ${TILE_TINTS[i % TILE_TINTS.length]} text-white shadow-md`}><Icon name={t.icon} size={19} /></span>
+                            <p className="relative mt-3 text-sm font-semibold text-pencil">{t.label}</p>
+                            {t.value === undefined ? <Skeleton className="mt-2 h-9 w-16" /> : <p className="relative mt-1 font-display text-3xl font-extrabold tabular-nums text-ink-deep sm:text-[2.1rem]">{t.value}</p>}
+                            {t.sub && <p className="relative mt-1 hidden text-sm text-pencil sm:block">{t.sub}</p>}
+                        </Link>
+                    </motion.div>
                 ))}
             </section>
 
@@ -144,7 +161,7 @@ export default function Overview() {
                                 {s.visits_series.map((v) => (
                                     <div key={v.date} className="flex flex-1 flex-col items-center gap-1">
                                         <span className="text-[11px] tabular-nums text-pencil">{v.count || ''}</span>
-                                        <div className="w-full rounded-t bg-ink/80" style={{ height: `${Math.max(2, (v.count / max) * 100)}px` }} title={`${v.date}: ${v.count}`} />
+                                        <div className="w-full rounded-t-md bg-gradient-to-t from-ink to-[#22d3ee]" style={{ height: `${Math.max(2, (v.count / max) * 100)}px` }} title={`${v.date}: ${v.count}`} />
                                     </div>
                                 ))}
                             </div>

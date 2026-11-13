@@ -3,59 +3,70 @@
 @source '../js/**/*.jsx';
 
 /*
- * Visual idea: the school exercise notebook — cool paper, faint blue rules,
- * one red margin line, fountain-pen ink. The margin line is the signature;
- * everything around it stays quiet.
+ * Visual idea: "clinical aurora". Calm mint-white surfaces, a deep petrol
+ * sidebar, and a teal-to-cyan accent that glows on what matters right now
+ * (the active page, the next patient, a critical result). Soft depth from
+ * layered shadows and glass, never heavy borders.
  */
 @theme {
-    --font-sans: 'Atkinson Hyperlegible', ui-sans-serif, system-ui, sans-serif;
-    --font-display: 'Bricolage Grotesque', ui-sans-serif, system-ui, sans-serif;
+    --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+    --font-display: 'Plus Jakarta Sans Variable', 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
 
-    --color-paper: #f7f9fd;
-    --color-ink: #1b3a8c;
-    --color-ink-deep: #12285f;
-    --color-ink-50: #eef3fc;
-    --color-rule: #d6e3f5;
-    --color-margin: #c8202f;
-    --color-margin-deep: #a11824;
-    --color-leaf: #1f7a4d;
-    --color-leaf-50: #e9f6ef;
-    --color-graphite: #2b303b;
-    --color-pencil: #646b7b;
+    --color-paper: #f3f7f8;
+    --color-ink: #0e8a7e;
+    --color-ink-deep: #0a2f3a;
+    --color-ink-50: #e5f5f2;
+    --color-rule: #dde8ea;
+    --color-margin: #e5484d;
+    --color-margin-deep: #c2373c;
+    --color-leaf: #12a150;
+    --color-leaf-50: #e6f7ee;
+    --color-graphite: #172630;
+    --color-pencil: #5b6b75;
+    --color-glow: #22d3ee;
+    --color-petrol: #06232c;
+
+    --shadow-soft: 0 1px 2px rgb(10 47 58 / .04), 0 8px 24px -12px rgb(10 47 58 / .12);
+    --shadow-lift: 0 2px 4px rgb(10 47 58 / .05), 0 18px 40px -18px rgb(10 47 58 / .28);
 }
 
 @layer base {
     html { color-scheme: light; -webkit-tap-highlight-color: transparent; }
     body {
         @apply bg-paper text-graphite font-sans antialiased;
-        font-size: 16px;
+        font-size: 15.5px;
         line-height: 1.55;
+        font-feature-settings: 'cv11', 'ss01';
+        background-image:
+            radial-gradient(60rem 30rem at 100% -10%, color-mix(in srgb, var(--color-ink) 7%, transparent), transparent 70%),
+            radial-gradient(40rem 24rem at -10% 110%, color-mix(in srgb, var(--color-glow) 6%, transparent), transparent 70%);
+        background-attachment: fixed;
     }
-    h1, h2, h3, h4 { @apply font-display text-ink-deep; letter-spacing: -0.02em; line-height: 1.15; }
-    :focus-visible { outline: 3px solid color-mix(in srgb, var(--color-ink) 55%, transparent); outline-offset: 2px; border-radius: 6px; }
-    ::selection { background: color-mix(in srgb, var(--color-ink) 18%, transparent); }
+    h1, h2, h3, h4 { @apply font-display text-ink-deep; letter-spacing: -0.025em; line-height: 1.15; }
+    :focus-visible { outline: 3px solid color-mix(in srgb, var(--color-ink) 55%, transparent); outline-offset: 2px; border-radius: 8px; }
+    ::selection { background: color-mix(in srgb, var(--color-ink) 22%, transparent); }
+
+    /* Cards and panels across the app get soft depth instead of flat borders. */
+    main .rounded-2xl.bg-white, main .rounded-xl.bg-white { box-shadow: var(--shadow-soft); border-color: color-mix(in srgb, var(--color-rule) 70%, transparent); }
+    main a.rounded-2xl.bg-white, main li.rounded-2xl.bg-white { transition: box-shadow .25s, transform .25s; }
+    main a.rounded-2xl.bg-white:hover { box-shadow: var(--shadow-lift); transform: translateY(-2px); }
+
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--color-pencil) 30%, transparent); border-radius: 99px; border: 3px solid transparent; background-clip: content-box; }
 }
 
+/* Kept for older markup: a faint dot grid instead of ruled lines. */
 @utility ruled {
-    background-image: repeating-linear-gradient(
-        to bottom,
-        transparent 0,
-        transparent 31px,
-        var(--color-rule) 31px,
-        var(--color-rule) 32px
-    );
+    background-image: radial-gradient(color-mix(in srgb, var(--color-ink) 12%, transparent) 1px, transparent 1px);
+    background-size: 18px 18px;
 }
 
 @utility ruled-faint {
-    background-image: repeating-linear-gradient(
-        to bottom,
-        transparent 0,
-        transparent 31px,
-        color-mix(in srgb, var(--color-rule) 55%, transparent) 31px,
-        color-mix(in srgb, var(--color-rule) 55%, transparent) 32px
-    );
+    background-image: radial-gradient(color-mix(in srgb, var(--color-ink) 7%, transparent) 1px, transparent 1px);
+    background-size: 18px 18px;
 }
 
+/* An accent bar on the leading edge of a highlighted panel. */
 @utility margin-line {
     position: relative;
     &::before {
@@ -63,10 +74,23 @@
         position: absolute;
         inset-block: 0;
         left: 0;
-        width: 2px;
-        background: var(--color-margin);
+        width: 4px;
+        background: linear-gradient(180deg, var(--color-ink), var(--color-glow));
         pointer-events: none;
     }
+}
+
+@utility glass {
+    background: color-mix(in srgb, white 72%, transparent);
+    backdrop-filter: blur(16px) saturate(1.4);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+}
+
+@utility text-gradient {
+    background: linear-gradient(100deg, #5eead4 0%, #22d3ee 45%, #a5f3fc 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
 }
 
 @utility btn {
@@ -85,10 +109,15 @@
 @keyframes fade { from { opacity: 0; } }
 @keyframes slide-in { from { transform: translateX(24px); opacity: 0; } }
 @keyframes slide-in-left { from { transform: translateX(-24px); opacity: 0; } }
-@keyframes pop { from { transform: scale(.97); opacity: 0; } }
+@keyframes pop { from { transform: translateY(10px) scale(.96); opacity: 0; } }
 @keyframes toast { from { transform: translateY(8px); opacity: 0; } }
 @keyframes write { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
 @keyframes fill { from { width: 0; } }
+@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+@keyframes aurora { 0% { transform: translate(0, 0) scale(1); } 50% { transform: translate(6%, -4%) scale(1.15); } 100% { transform: translate(0, 0) scale(1); } }
+@keyframes shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
+@keyframes pulse-ring { 0% { transform: scale(.8); opacity: .7; } 100% { transform: scale(2.2); opacity: 0; } }
+@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { transition: none !important; animation: none !important; }

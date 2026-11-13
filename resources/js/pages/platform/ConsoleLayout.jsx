@@ -44,16 +44,16 @@ export default function ConsoleLayout() {
     if (!me) return <div className="p-10"><Skeleton className="h-10 w-64" /></div>;
 
     const sidebar = (
-        <div className="flex h-full flex-col bg-[#0d1d4a] text-white">
+        <div className="flex h-full flex-col bg-[#06232c] text-white">
             <div className="flex items-center gap-2 px-5 pt-6 pb-6">
-                <Logo to="/platform" className="[&_span:last-child]:text-white" />
+                <Logo to="/platform" light />
                 <span className="rounded-full bg-white/15 px-2 py-0.5 text-[11px] font-bold">Owner</span>
             </div>
             <nav className="flex-1 space-y-1 overflow-y-auto px-3" aria-label="Console">
                 {NAV.map((l) => (
                     <NavLink key={l.to} to={l.to} end={l.end}
-                        className={({ isActive }) => `relative flex items-center gap-3 rounded-lg px-3 py-2.5 font-bold transition ${isActive
-                            ? 'bg-white/12 text-white before:absolute before:inset-y-2 before:-left-3 before:w-[3px] before:rounded-r before:bg-[#e5484d]'
+                        className={({ isActive }) => `relative flex items-center gap-3 rounded-xl px-3 py-2.5 font-semibold transition ${isActive
+                            ? 'bg-gradient-to-r from-[#0e8a7e]/80 to-white/[.06] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)]'
                             : 'text-white/60 hover:bg-white/5 hover:text-white'}`}>
                         <Icon name={l.icon} size={19} />
                         <span className="flex-1">{l.label}</span>
@@ -75,7 +75,7 @@ export default function ConsoleLayout() {
     return (
         <div className="min-h-screen bg-paper lg:grid lg:grid-cols-[16rem_1fr]">
             <aside className="sticky top-0 hidden h-screen lg:block">{sidebar}</aside>
-            <header className="sticky top-0 z-30 flex items-center justify-between bg-[#0d1d4a] px-4 py-3 text-white lg:hidden">
+            <header className="sticky top-0 z-30 flex items-center justify-between bg-[#06232c] px-4 py-3 text-white lg:hidden">
                 <IconButton icon="menu" label="Open menu" onClick={() => setDrawer(true)} className="text-white hover:bg-white/10" />
                 <span className="font-display font-bold">Owner console</span>
                 <span className="w-9" />
