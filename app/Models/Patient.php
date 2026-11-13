@@ -15,6 +15,9 @@ class Patient extends Model
     // tenant_id is stamped by BelongsToTenant; controllers validate every field they pass in.
     protected $guarded = ['id', 'tenant_id'];
 
+    /** Same as the column defaults, so new models carry them before a refresh. */
+    protected $attributes = ['is_active' => true];
+
     protected function casts(): array
     {
         return ['date_of_birth' => 'date', 'is_active' => 'boolean'];

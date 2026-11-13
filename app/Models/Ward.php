@@ -15,6 +15,9 @@ class Ward extends Model
     // tenant_id is stamped by BelongsToTenant; controllers validate every field they pass in.
     protected $guarded = ['id', 'tenant_id'];
 
+    /** Same as the column defaults, so new models carry them before a refresh. */
+    protected $attributes = ['type' => 'general', 'daily_rate' => 0];
+
     protected function casts(): array
     {
         return ['daily_rate' => 'decimal:2'];

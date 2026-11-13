@@ -170,8 +170,8 @@ class HospitalFlowTest extends TestCase
         // Accounts take payment.
         $this->as('accountant')->postJson("/api/invoices/{$invoice->id}/payments", ['amount' => 500, 'method' => 'card'])->assertUnprocessable();
         $this->as('accountant')->postJson("/api/invoices/{$invoice->id}/payments", ['amount' => 121.50, 'method' => 'card', 'reference' => 'VISA-4417'])
-            ->assertCreated()->assertJsonPath('status', 'paid')->assertJsonPath('balance', 0.0);
-        $this->as('accountant')->getJson('/api/invoices/summary')->assertOk()->assertJsonPath('collected', 121.5)->assertJsonPath('outstanding', 240.0);
+            ->assertCreated()->assertJsonPath('status', 'paid')->assertJsonPath('balance', 0);
+        $this->as('accountant')->getJson('/api/invoices/summary')->assertOk()->assertJsonPath('collected', 121.5)->assertJsonPath('outstanding', 240);
 
         // Insurance pays the room bill.
         $claim = $this->as('accountant')->postJson('/api/claims', ['invoice_id' => $roomBill->id, 'provider' => 'BlueCross', 'policy_no' => 'BC-1'])

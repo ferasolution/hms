@@ -15,6 +15,9 @@ class InsuranceClaim extends Model
     // tenant_id is stamped by BelongsToTenant; controllers validate every field they pass in.
     protected $guarded = ['id', 'tenant_id'];
 
+    /** Same as the column defaults, so new models carry them before a refresh. */
+    protected $attributes = ['status' => 'submitted'];
+
     protected function casts(): array
     {
         return ['amount_claimed' => 'decimal:2', 'amount_approved' => 'decimal:2'];

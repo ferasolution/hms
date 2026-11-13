@@ -15,6 +15,9 @@ class Bed extends Model
     // tenant_id is stamped by BelongsToTenant; controllers validate every field they pass in.
     protected $guarded = ['id', 'tenant_id'];
 
+    /** Same as the column defaults, so new models carry them before a refresh. */
+    protected $attributes = ['status' => 'available'];
+
     public const STATUSES = ['available', 'occupied', 'cleaning', 'maintenance'];
 
     public function ward(): BelongsTo { return $this->belongsTo(Ward::class); }

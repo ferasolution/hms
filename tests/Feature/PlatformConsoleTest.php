@@ -190,7 +190,7 @@ class PlatformConsoleTest extends TestCase
             ->assertJsonPath('data.0.tenant.slug', 'acme')
             ->assertJsonPath('data.0.reference', 'REF-1')
             ->assertJsonPath('data.0.patient.name', 'Emily Carter')
-            ->assertJsonPath('summary.volume.0.amount', 120.0);
+            ->assertJsonPath('summary.volume.0.amount', 120);
     }
 
     public function test_activity_records_logins_and_signups(): void

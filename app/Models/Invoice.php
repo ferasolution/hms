@@ -15,6 +15,9 @@ class Invoice extends Model
     // tenant_id is stamped by BelongsToTenant; controllers validate every field they pass in.
     protected $guarded = ['id', 'tenant_id'];
 
+    /** Same as the column defaults, so new models carry them before a refresh. */
+    protected $attributes = ['status' => 'unpaid', 'subtotal' => 0, 'discount' => 0, 'tax' => 0, 'total' => 0, 'paid' => 0];
+
     protected function casts(): array
     {
         return ['subtotal' => 'decimal:2', 'discount' => 'decimal:2', 'tax' => 'decimal:2', 'total' => 'decimal:2', 'paid' => 'decimal:2', 'due_on' => 'date'];
