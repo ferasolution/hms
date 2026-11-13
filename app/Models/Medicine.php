@@ -20,7 +20,7 @@ class Medicine extends Model
 
     protected function casts(): array
     {
-        return ['expiry_date' => 'date', 'unit_price' => 'decimal:2', 'stock' => 'integer', 'reorder_level' => 'integer', 'is_active' => 'boolean'];
+        return ['expiry_date' => 'date:Y-m-d', 'unit_price' => 'decimal:2', 'stock' => 'integer', 'reorder_level' => 'integer', 'is_active' => 'boolean'];
     }
 
     public function movements(): HasMany { return $this->hasMany(StockMovement::class); }

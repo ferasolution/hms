@@ -10,7 +10,7 @@ import SearchPalette from '../components/SearchPalette';
 import { ROLE_LABEL, TYPE_LABEL } from '../lib/hms';
 
 // Which module each page belongs to (Settings → Modules can switch them off).
-const MODULE_OF = { appointments: 'appointments', inpatients: 'ipd', pharmacy: 'pharmacy', lab: 'lab', billing: 'billing' };
+const MODULE_OF = { appointments: 'appointments', inpatients: 'ipd', pharmacy: 'pharmacy', lab: 'lab', billing: 'billing', insurance: 'insurance' };
 
 export default function TenantLayout() {
     const { tenant } = useParams();
@@ -79,6 +79,7 @@ export default function TenantLayout() {
             is('admin', 'doctor', 'nurse', 'receptionist', 'lab_technician') && { to: `${t}/lab`, label: 'Lab & imaging', icon: 'flask' },
             is('admin', 'pharmacist') && { to: `${t}/pharmacy`, label: 'Pharmacy', icon: 'pill' },
             is('admin', 'accountant', 'receptionist') && { to: `${t}/billing`, label: 'Billing', icon: 'receipt' },
+            is('admin', 'accountant', 'receptionist') && { to: `${t}/insurance`, label: 'Insurance', icon: 'shield' },
         ] },
         { label: 'Team', links: [
             { to: `${t}/staff`, label: 'Staff & roster', icon: 'stethoscope' },

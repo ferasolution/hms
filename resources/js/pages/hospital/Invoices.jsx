@@ -12,7 +12,6 @@ export default function Invoices() {
     const toast = useToast();
     const navigate = useNavigate();
     const role = me.user.role;
-    const canClaims = ['admin', 'accountant'].includes(role) && me.tenant.settings?.modules?.insurance !== false;
     const [tab, setTab] = useState('invoices');
     const [creating, setCreating] = useState(false);
 
@@ -24,11 +23,10 @@ export default function Invoices() {
                     <Button icon="plus" onClick={() => setCreating(true)}>New bill</Button>
                 </>} />
             <Summary tenant={tenant} currency={me.tenant.settings?.currency ?? 'USD'} />
-            <Tabs className="mt-6" value={tab} onChange={setTab} tabs={[{ value: 'invoices', label: 'Bills' }, { value: 'payments', label: 'Today’s collections' }, canClaims && { value: 'claims', label: 'Insurance claims' }].filter(Boolean)} />
+            <Tabs className="mt-6" value={tab} onChange={setTab} tabs={[{ value: 'invoices', label: 'Bills' }, { value: 'payments', label: 'Today’s collections' }]} />
             <div className="mt-4">
                 {tab === 'invoices' && <InvoiceList tenant={tenant} />}
                 {tab === 'payments' && <Collections tenant={tenant} />}
-                {tab === 'claims' && <Claims tenant={tenant} />}
             </div>
             {creating && <NewInvoice tenant={tenant} onClose={() => setCreating(false)} onDone={(inv) => { setCreating(false); navigate(`/${tenant}/billing/${inv.id}`); }} />}
         </div>
@@ -126,63 +124,6 @@ function Collections({ tenant }) {
                 )}
             </div>
         </div>
-    );
-}
-
-const CLAIM_STATUS = { submitted: ['Submitted', 'warning'], approved: ['Approved', 'draft'], rejected: ['Rejected', 'danger'], paid: ['Paid', 'success'] };
-
-function Claims({ tenant }) {
-    const toast = useToast();
-    const [status, setStatus] = useState('');
-    const [rows, setRows] = useState(null);
-    const [editing, setEditing] = useState(null);
-    const load = useCallback(() => api(`claims${status ? `?status=${status}` : ''}`, { tenant }).then((r) => setRows(r.data)), [tenant, status]);
-    useEffect(() => { load(); }, [load]);
-    return (
-        <div>
-            <div className="flex gap-2">{[['', 'All'], ['submitted', 'Submitted'], ['approved', 'Approved'], ['paid', 'Paid'], ['rejected', 'Rejected']].map(([v, l]) => <button key={v} type="button" aria-pressed={status === v} onClick={() => setStatus(v)} className={`rounded-full px-3.5 py-1.5 text-sm font-bold ring-1 ${status === v ? 'bg-ink-deep text-white ring-ink-deep' : 'bg-white text-graphite ring-rule'}`}>{l}</button>)}</div>
-            <p className="mt-3 text-sm text-pencil">Start a claim from a bill (Billing → open a bill → Claim insurance).</p>
-            <div className="mt-4">
-                {!rows ? <Skeleton className="h-40 rounded-2xl" /> : rows.length === 0 ? <p className="rounded-xl border border-dashed border-rule bg-white/60 px-4 py-10 text-center text-pencil">No claims.</p> : (
-                    <ul className="divide-y divide-rule overflow-hidden rounded-2xl border border-rule bg-white">
-                        {rows.map((c) => (
-                            <li key={c.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
-                                <div className="min-w-0 flex-1"><b className="text-graphite">{c.provider}</b> <span className="text-sm text-pencil">· {c.patient?.first_name} {c.patient?.last_name} · {c.invoice?.number}{c.claim_no ? ` · claim ${c.claim_no}` : ''}</span><span className="block text-sm text-pencil">{date(c.created_at)}{c.policy_no ? ` · policy ${c.policy_no}` : ''}</span></div>
-                                <span className="tabular-nums">{money(c.amount_claimed, c.invoice?.currency)}{c.amount_approved !== null && c.amount_approved !== undefined ? <span className="text-pencil"> → {money(c.amount_approved, c.invoice?.currency)}</span> : ''}</span>
-                                <Badge tone={CLAIM_STATUS[c.status][1]}>{CLAIM_STATUS[c.status][0]}</Badge>
-                                {c.status !== 'paid' && <Button size="sm" variant="secondary" onClick={() => setEditing(c)}>Update</Button>}
-                            </li>
-                        ))}
-                    </ul>
-                )}
-            </div>
-            {editing && <ClaimUpdate tenant={tenant} claim={editing} onClose={() => setEditing(null)} onDone={() => { setEditing(null); toast('Claim updated'); load(); }} />}
-        </div>
-    );
-}
-
-function ClaimUpdate({ tenant, claim, onClose, onDone }) {
-    const [status, setStatus] = useState(claim.status === 'submitted' ? 'approved' : claim.status);
-    const [approved, setApproved] = useState(claim.amount_approved ?? claim.amount_claimed);
-    const [claimNo, setClaimNo] = useState(claim.claim_no ?? '');
-    const [notes, setNotes] = useState(claim.notes ?? '');
-    const [busy, setBusy] = useState(false);
-    const [error, setError] = useState(null);
-    async function save() {
-        setBusy(true);
-        try { await api(`claims/${claim.id}`, { method: 'PATCH', tenant, body: { status, amount_approved: status === 'rejected' ? 0 : Number(approved), claim_no: claimNo || null, notes: notes || null } }); onDone(); } catch (e) { setError(e); } finally { setBusy(false); }
-    }
-    return (
-        <Modal open onClose={onClose} title={`Claim · ${claim.provider}`} footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} onClick={save}>Save</Button></>}>
-            <div className="space-y-4">
-                <Field label="Status" name="status" as="select" value={status} onChange={(e) => setStatus(e.target.value)}>
-                    <option value="submitted">Submitted</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="paid">Paid — record the payment on the bill</option>
-                </Field>
-                {status !== 'rejected' && <Field label="Approved amount" name="amount_approved" type="number" min="0" step="0.01" error={error} value={approved} onChange={(e) => setApproved(e.target.value)} />}
-                <Field label="Claim number" name="claim_no" error={error} value={claimNo} onChange={(e) => setClaimNo(e.target.value)} />
-                <Field label="Notes" name="notes" as="textarea" rows={2} error={error} value={notes} onChange={(e) => setNotes(e.target.value)} />
-            </div>
-        </Modal>
     );
 }
 
@@ -391,23 +332,44 @@ function AddCharge({ tenant, inv, onClose, onDone }) {
 }
 
 function ClaimDialog({ tenant, inv, onClose, onDone }) {
+    const [cov, setCov] = useState(null);
+    const [amount, setAmount] = useState('');
+    const [claimNo, setClaimNo] = useState('');
     const [provider, setProvider] = useState(inv.patient.insurance_provider ?? '');
-    const [policy, setPolicy] = useState(inv.patient.insurance_number ?? '');
-    const [amount, setAmount] = useState(inv.balance);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState(null);
+    useEffect(() => {
+        api(`invoices/${inv.id}/coverage`, { tenant }).then((c) => { setCov(c); setAmount(c.estimate.insurer); }).catch(() => setCov({ policy: null, estimate: { insurer: inv.balance, patient: 0 } }));
+    }, [tenant, inv.id, inv.balance]);
     async function save() {
         setBusy(true);
-        try { await api('claims', { method: 'POST', tenant, body: { invoice_id: inv.id, provider, policy_no: policy || null, amount_claimed: Number(amount) } }); onDone(); } catch (e) { setError(e); } finally { setBusy(false); }
+        setError(null);
+        try {
+            await api('claims', { method: 'POST', tenant, body: { invoice_id: inv.id, amount_claimed: Number(amount), claim_no: claimNo || null, ...(cov?.policy ? {} : { provider }) } });
+            onDone();
+        } catch (e) { setError(e); } finally { setBusy(false); }
     }
     return (
-        <Modal open onClose={onClose} title="Claim insurance" footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} onClick={save}>Submit claim</Button></>}>
-            <div className="space-y-4">
-                <Field label="Insurance company" name="provider" error={error} value={provider} onChange={(e) => setProvider(e.target.value)} />
-                <Field label="Policy / member no." name="policy_no" error={error} value={policy} onChange={(e) => setPolicy(e.target.value)} />
-                <Field label="Amount claimed" name="amount_claimed" type="number" min="0.01" step="0.01" error={error} value={amount} onChange={(e) => setAmount(e.target.value)} />
-                {error && !Object.keys(error.errors ?? {}).length && <p className="text-margin">{error.message}</p>}
-            </div>
+        <Modal open onClose={onClose} title="Claim insurance" footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} disabled={!cov} onClick={save}>Submit claim</Button></>}>
+            {!cov ? <Skeleton className="h-32" /> : (
+                <div className="space-y-4">
+                    {cov.policy ? (
+                        <div className="rounded-xl bg-paper p-4 text-sm">
+                            <p><b>{cov.policy.provider?.name}</b> · policy {cov.policy.policy_no}</p>
+                            <p className="mt-1 text-pencil">{Number(cov.policy.coverage_percent)}% cover{Number(cov.policy.copay) > 0 ? `, minus ${money(cov.policy.copay, inv.currency)} co-pay` : ''}</p>
+                            <p className="mt-2">Insurer pays <b>{money(cov.estimate.insurer, inv.currency)}</b> · patient pays <b>{money(cov.estimate.patient, inv.currency)}</b></p>
+                        </div>
+                    ) : (
+                        <>
+                            <p className="text-sm text-pencil">No active policy on file. Add one on the patient’s Insurance tab for automatic coverage, or enter the insurer here.</p>
+                            <Field label="Insurance company" name="provider" error={error} value={provider} onChange={(e) => setProvider(e.target.value)} />
+                        </>
+                    )}
+                    <Field label="Amount to claim" name="amount_claimed" type="number" min="0.01" step="0.01" error={error} value={amount} onChange={(e) => setAmount(e.target.value)} />
+                    <Field label="Claim number (if the insurer gave one)" name="claim_no" error={error} value={claimNo} onChange={(e) => setClaimNo(e.target.value)} />
+                    {error && !Object.keys(error.errors ?? {}).length && <p className="text-margin">{error.message}</p>}
+                </div>
+            )}
         </Modal>
     );
 }

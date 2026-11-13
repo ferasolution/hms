@@ -8,6 +8,8 @@ import { Avatar, Badge, Button, Field, Modal, PageHeader, SlideOver, Skeleton, T
 import { PatientForm } from './Patients';
 import { AppointmentBadge, BookDialog, useDoctors } from './Appointments';
 import { AdmitDialog } from './Inpatients';
+import HealthRecord from './HealthRecord';
+import { PatientInsurance } from './Insurance';
 
 export default function PatientChart() {
     const { id } = useParams();
@@ -16,7 +18,7 @@ export default function PatientChart() {
     const toast = useToast();
     const [params, setParams] = useSearchParams();
     const [d, setD] = useState(null);
-    const [tab, setTab] = useState('visits');
+    const [tab, setTab] = useState('record');
     const [editing, setEditing] = useState(false);
     const [noting, setNoting] = useState(params.get('note') ? { appointment_id: Number(params.get('note')) } : null);
     const [booking, setBooking] = useState(false);
@@ -34,14 +36,19 @@ export default function PatientChart() {
     if (!d) return <Skeleton className="h-96 rounded-2xl" />;
     const p = d.patient;
 
+    const insuranceOn = me.tenant.settings?.modules?.insurance !== false;
     const tabs = [
+        { value: 'record', label: 'Health record' },
         { value: 'visits', label: `Visits (${d.encounters.length})` },
         { value: 'appointments', label: 'Appointments' },
         { value: 'prescriptions', label: 'Prescriptions' },
         { value: 'labs', label: 'Lab & imaging' },
         { value: 'admissions', label: 'Admissions' },
         billing && { value: 'bills', label: 'Bills' },
+        insuranceOn && role !== 'pharmacist' && role !== 'lab_technician' && { value: 'insurance', label: 'Insurance' },
     ].filter(Boolean);
+    const allergyAlert = d.alerts.allergies.length ? d.alerts.allergies.map((a) => `${a.allergen}${a.severity === 'severe' || a.severity === 'life_threatening' ? ' (severe)' : ''}`).join(', ') : p.allergies;
+    const problemAlert = d.alerts.problems.length ? d.alerts.problems.map((x) => x.name).join(', ') : p.chronic_conditions;
 
     return (
         <div>
@@ -55,10 +62,10 @@ export default function PatientChart() {
                     {clinician && <Button icon="plus" onClick={() => setNoting({})}>{role === 'nurse' ? 'Record vitals' : 'New note'}</Button>}
                 </>} />
 
-            {(p.allergies || p.chronic_conditions) && (
+            {(allergyAlert || problemAlert) && (
                 <div className="mt-6 flex flex-wrap gap-3">
-                    {p.allergies && <div className="flex items-start gap-2 rounded-xl bg-margin/5 px-4 py-3 text-margin ring-1 ring-margin/20"><Icon name="alert" size={18} className="mt-0.5" /><span><b>Allergies:</b> {p.allergies}</span></div>}
-                    {p.chronic_conditions && <div className="flex items-start gap-2 rounded-xl bg-amber-50 px-4 py-3 text-amber-900 ring-1 ring-amber-600/20"><Icon name="activity" size={18} className="mt-0.5" /><span><b>Conditions:</b> {p.chronic_conditions}</span></div>}
+                    {allergyAlert && <div className="flex items-start gap-2 rounded-xl bg-margin/5 px-4 py-3 text-margin ring-1 ring-margin/20"><Icon name="alert" size={18} className="mt-0.5" /><span><b>Allergies:</b> {allergyAlert}</span></div>}
+                    {problemAlert && <div className="flex items-start gap-2 rounded-xl bg-amber-50 px-4 py-3 text-amber-900 ring-1 ring-amber-600/20"><Icon name="activity" size={18} className="mt-0.5" /><span><b>Problems:</b> {problemAlert}</span></div>}
                 </div>
             )}
 
@@ -74,6 +81,8 @@ export default function PatientChart() {
                 <div className="min-w-0">
                     <Tabs value={tab} onChange={setTab} tabs={tabs} />
                     <div className="mt-4">
+                        {tab === 'record' && <HealthRecord tenant={tenant} patientId={p.id} onChange={load} />}
+                        {tab === 'insurance' && <PatientInsurance tenant={tenant} me={me} patient={p} onChange={load} />}
                         {tab === 'visits' && <Visits encounters={d.encounters} />}
                         {tab === 'appointments' && <Rows empty="No appointments yet." rows={d.appointments} render={(a) => (
                             <><div className="min-w-0 flex-1"><p className="font-bold text-graphite">{shortDate(a.scheduled_at, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })} · {time(a.scheduled_at)}</p><p className="text-sm text-pencil">{a.doctor?.name}{a.department ? ` · ${a.department.name}` : ''}{a.reason ? ` · ${a.reason}` : ''}</p></div><AppointmentBadge status={a.status} /></>
@@ -105,7 +114,10 @@ export default function PatientChart() {
                         <Line label="Date of birth" value={p.date_of_birth && date(p.date_of_birth)} />
                     </Card>
                     <Card title="Emergency contact"><Line label={p.emergency_contact_name ?? 'Not recorded'} value={p.emergency_contact_phone} /></Card>
-                    <Card title="Insurance"><Line label={p.insurance_provider ?? 'None'} value={p.insurance_number} /></Card>
+                    <Card title="Insurance">
+                        {d.policy ? <><Line label={d.policy.provider?.name} value={`Policy ${d.policy.policy_no}${d.policy.plan_name ? ` · ${d.policy.plan_name}` : ''}`} /><p className="text-sm text-pencil">Covers {Number(d.policy.coverage_percent)}%{Number(d.policy.copay) > 0 ? ` · co-pay ${d.policy.copay}` : ''}{d.policy.valid_to ? ` · until ${date(d.policy.valid_to)}` : ''}</p></>
+                            : <Line label={p.insurance_provider ?? 'No active policy'} value={p.insurance_number} />}
+                    </Card>
                     {['admin', 'receptionist'].includes(role) && me.tenant.settings?.modules?.portal !== false && (
                         <Card title="Patient portal">
                             {p.portal_account ? <p className="text-sm text-pencil">Signs in as <b className="text-graphite">{p.portal_account.email}</b></p> : (

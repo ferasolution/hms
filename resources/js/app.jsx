@@ -21,6 +21,7 @@ import Pharmacy from './pages/hospital/Pharmacy';
 import Lab from './pages/hospital/Lab';
 import Invoices, { InvoiceDetail } from './pages/hospital/Invoices';
 import Staff from './pages/hospital/Staff';
+import Insurance from './pages/hospital/Insurance';
 import Settings from './pages/Settings';
 import Profile from './pages/Profile';
 import { PlatformLogin } from './pages/Platform';
@@ -43,7 +44,7 @@ function ScrollAndTitle() {
     useEffect(() => {
         if (!hash) window.scrollTo(0, 0);
         const last = pathname.split('/').filter(Boolean).pop();
-        const section = { patients: 'Patients', appointments: 'Appointments', inpatients: 'Inpatients', pharmacy: 'Pharmacy', lab: 'Lab & imaging', staff: 'Staff', people: 'People', login: 'Sign in', payments: 'Payments', settings: 'Settings', profile: 'Profile', platform: 'Owner console', billing: 'Billing', subscription: 'Plan', hospitals: 'Hospitals', subscriptions: 'Plan payments', users: 'Users', activity: 'Activity', health: 'System health' }[last];
+        const section = { patients: 'Patients', appointments: 'Appointments', inpatients: 'Inpatients', pharmacy: 'Pharmacy', lab: 'Lab & imaging', staff: 'Staff', people: 'People', login: 'Sign in', payments: 'Payments', settings: 'Settings', profile: 'Profile', platform: 'Owner console', billing: 'Billing', insurance: 'Insurance', subscription: 'Plan', hospitals: 'Hospitals', subscriptions: 'Plan payments', users: 'Users', activity: 'Activity', health: 'System health' }[last];
         document.title = TITLES[pathname] ?? (section ? `${section} · Fera HealthSphere` : 'Fera HealthSphere');
     }, [pathname, hash]);
     return null;
@@ -86,6 +87,7 @@ function App() {
                         <Route path="billing" element={<Invoices />} />
                         <Route path="billing/:id" element={<InvoiceDetail />} />
                         <Route path="staff" element={<Staff />} />
+                        <Route path="insurance" element={<Insurance />} />
                         <Route path="my-health" element={<Navigate to=".." relative="path" replace />} />
                         <Route path="people" element={<People />} />
                         <Route path="settings" element={<Settings />} />

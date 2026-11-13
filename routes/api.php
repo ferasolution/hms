@@ -8,7 +8,9 @@ use App\Http\Controllers\Api\Hospital\AppointmentController;
 use App\Http\Controllers\Api\Hospital\CommunityController;
 use App\Http\Controllers\Api\Hospital\DashboardController;
 use App\Http\Controllers\Api\Hospital\EncounterController;
+use App\Http\Controllers\Api\Hospital\EhrController;
 use App\Http\Controllers\Api\Hospital\InpatientController;
+use App\Http\Controllers\Api\Hospital\InsuranceController;
 use App\Http\Controllers\Api\Hospital\InvoiceController;
 use App\Http\Controllers\Api\Hospital\LabController;
 use App\Http\Controllers\Api\Hospital\PatientController;
@@ -151,6 +153,41 @@ Route::middleware('tenant')->group(function () {
             Route::post('patients/{patient}/portal', [PatientController::class, 'portal'])->middleware('module:portal');
         });
 
+        // Health record (EHR). Writes are checked per section in EhrController.
+        Route::middleware('role:admin,doctor,nurse,receptionist,pharmacist,lab_technician,accountant')->group(function () {
+            Route::get('patients/{patient}/ehr', [EhrController::class, 'show']);
+            Route::post('patients/{patient}/ehr/{type}', [EhrController::class, 'store'])->whereIn('type', ['problems', 'allergies', 'medications', 'immunizations', 'documents']);
+            Route::patch('ehr/{type}/{id}', [EhrController::class, 'update'])->whereIn('type', ['problems', 'allergies', 'medications', 'immunizations', 'documents'])->whereNumber('id');
+            Route::delete('ehr/{type}/{id}', [EhrController::class, 'destroy'])->whereIn('type', ['problems', 'allergies', 'medications', 'immunizations', 'documents'])->whereNumber('id');
+            Route::put('patients/{patient}/history', [EhrController::class, 'saveHistory']);
+            Route::get('patients/{patient}/access-log', [EhrController::class, 'accessLog'])->middleware('role:admin');
+        });
+
+        // Insurance: front desk records policies and asks for pre-authorization; accounts handle claims.
+        Route::middleware('module:insurance')->group(function () {
+            Route::middleware('role:admin,accountant,receptionist,doctor,nurse')->group(function () {
+                Route::get('insurance/providers', [InsuranceController::class, 'providers']);
+                Route::get('patients/{patient}/policies', [InsuranceController::class, 'policies']);
+                Route::get('pre-authorizations', [InsuranceController::class, 'preAuthorizations']);
+                Route::post('pre-authorizations', [InsuranceController::class, 'storePreAuthorization']);
+            });
+            Route::middleware('role:admin,accountant,receptionist')->group(function () {
+                Route::post('patients/{patient}/policies', [InsuranceController::class, 'storePolicy']);
+                Route::patch('policies/{policy}', [InsuranceController::class, 'updatePolicy']);
+                Route::get('invoices/{invoice}/coverage', [InsuranceController::class, 'coverage'])->middleware('module:billing');
+            });
+            Route::middleware('role:admin,accountant')->group(function () {
+                Route::post('insurance/providers', [InsuranceController::class, 'storeProvider']);
+                Route::patch('insurance/providers/{provider}', [InsuranceController::class, 'updateProvider']);
+                Route::patch('pre-authorizations/{preAuthorization}', [InsuranceController::class, 'updatePreAuthorization']);
+                Route::get('claims', [InsuranceController::class, 'claims']);
+                Route::post('claims', [InsuranceController::class, 'storeClaim']);
+                Route::patch('claims/{claim}', [InsuranceController::class, 'updateClaim']);
+                Route::get('insurance/aging', [InsuranceController::class, 'aging']);
+                Route::get('exports/claims.csv', [InsuranceController::class, 'exportClaims']);
+            });
+        });
+
         // Doctors and nurses: clinical notes
         Route::middleware(['role:admin,doctor,nurse', 'module:opd'])->group(function () {
             Route::post('encounters', [EncounterController::class, 'store']);
@@ -199,11 +236,6 @@ Route::middleware('tenant')->group(function () {
         Route::middleware(['role:admin,accountant', 'module:billing'])->group(function () {
             Route::delete('invoices/{invoice}/payments/{payment}', [InvoiceController::class, 'destroyPayment']);
             Route::get('exports/invoices.csv', [InvoiceController::class, 'export']);
-            Route::middleware('module:insurance')->group(function () {
-                Route::get('claims', [InvoiceController::class, 'claims']);
-                Route::post('claims', [InvoiceController::class, 'storeClaim']);
-                Route::patch('claims/{claim}', [InvoiceController::class, 'updateClaim']);
-            });
         });
 
         // Hospital administration

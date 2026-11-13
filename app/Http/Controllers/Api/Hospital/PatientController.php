@@ -75,8 +75,15 @@ class PatientController extends Controller
     public function show(Request $request, Patient $patient): JsonResponse
     {
         $user = $request->user();
+        EhrController::logAccess($patient, $user);
+        $policy = $patient->activePolicy();
 
         return response()->json([
+            'alerts' => [
+                'allergies' => \App\Models\PatientAllergy::where('patient_id', $patient->id)->where('status', 'active')->get(['id', 'allergen', 'severity', 'reaction']),
+                'problems' => \App\Models\PatientProblem::where('patient_id', $patient->id)->whereIn('status', ['active', 'chronic'])->get(['id', 'name', 'icd_code', 'status']),
+            ],
+            'policy' => $policy ? $policy->only('id', 'policy_no', 'member_id', 'plan_name', 'coverage_percent', 'copay', 'valid_to') + ['provider' => $policy->provider?->only('id', 'name')] : null,
             'patient' => $this->row($patient) + [
                 'portal_account' => $patient->user_id ? User::find($patient->user_id)?->only('id', 'email', 'is_active') : null,
             ],

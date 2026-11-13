@@ -17,7 +17,7 @@ class Encounter extends Model
 
     protected function casts(): array
     {
-        return ['vitals' => 'array', 'follow_up_on' => 'date'];
+        return ['vitals' => 'array', 'follow_up_on' => 'date:Y-m-d'];
     }
 
     public function patient(): BelongsTo { return $this->belongsTo(Patient::class); }

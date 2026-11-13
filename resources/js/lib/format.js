@@ -12,7 +12,9 @@ export function duration(seconds) {
 
 export function date(value, opts = { day: 'numeric', month: 'short', year: 'numeric' }) {
     if (!value) return '';
-    return new Date(value).toLocaleDateString(undefined, opts);
+    // A bare YYYY-MM-DD is a calendar date: read it as local, not UTC midnight.
+    const d = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T00:00:00`) : new Date(value);
+    return d.toLocaleDateString(undefined, opts);
 }
 
 export function dateTime(value) {

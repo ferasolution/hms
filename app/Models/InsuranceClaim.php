@@ -20,9 +20,12 @@ class InsuranceClaim extends Model
 
     protected function casts(): array
     {
-        return ['amount_claimed' => 'decimal:2', 'amount_approved' => 'decimal:2'];
+        return ['amount_claimed' => 'decimal:2', 'amount_approved' => 'decimal:2', 'submitted_at' => 'datetime', 'decided_at' => 'datetime', 'paid_at' => 'datetime'];
     }
 
     public function invoice(): BelongsTo { return $this->belongsTo(Invoice::class); }
     public function patient(): BelongsTo { return $this->belongsTo(Patient::class); }
+    public function insurer(): BelongsTo { return $this->belongsTo(InsuranceProvider::class, 'insurance_provider_id'); }
+    public function policy(): BelongsTo { return $this->belongsTo(PatientPolicy::class, 'patient_policy_id'); }
+    public function preAuthorization(): BelongsTo { return $this->belongsTo(PreAuthorization::class); }
 }

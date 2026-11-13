@@ -20,7 +20,7 @@ class Patient extends Model
 
     protected function casts(): array
     {
-        return ['date_of_birth' => 'date', 'is_active' => 'boolean'];
+        return ['date_of_birth' => 'date:Y-m-d', 'is_active' => 'boolean'];
     }
 
     protected $appends = ['name', 'age'];
@@ -34,4 +34,12 @@ class Patient extends Model
     public function prescriptions(): HasMany { return $this->hasMany(Prescription::class); }
     public function labOrders(): HasMany { return $this->hasMany(LabOrder::class); }
     public function invoices(): HasMany { return $this->hasMany(Invoice::class); }
+    public function policies(): HasMany { return $this->hasMany(PatientPolicy::class); }
+
+    /** The policy bills are claimed against: primary first, then any valid one. */
+    public function activePolicy(): ?PatientPolicy
+    {
+        return $this->policies()->with('provider')->where('status', 'active')->orderByDesc('is_primary')->latest('id')->get()
+            ->first(fn (PatientPolicy $p) => $p->isValid());
+    }
 }
