@@ -116,27 +116,57 @@ jobs:
             mkdir -p "$d" && touch "$d/.keep"
           done
 
+      - name: Package release
+        if: steps.check.outputs.ready == 'true'
+        run: |
+          # One zip instead of thousands of FTP uploads (Bluehost's FTPS drops long transfers).
+          zip -qr release.zip . \
+            -x '.git/*' '.github/*' 'node_modules/*' 'tests/*' 'deploy/*' \
+               '.env' '.env.backup' '.env.production' 'release.zip'
+          ls -lh release.zip
+
+          # A random key for this run only; the unpacker accepts nothing else.
+          key=$(openssl rand -hex 32)
+          echo "::add-mask::$key"
+          echo "UNPACK_KEY=$key" >> "$GITHUB_ENV"
+          hash=$(printf '%s' "$key" | sha256sum | cut -d' ' -f1)
+          sed "s/__KEY_HASH__/$hash/" deploy/unpack.php > deploy-unpack.php
+
       - name: Upload over FTPS
         if: steps.check.outputs.ready == 'true'
-        uses: SamKirkland/FTP-Deploy-Action@v4.4.0
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          port: 21
-          protocol: ftps
-          security: loose
-          server-dir: ${{ secrets.FTP_SERVER_DIR || './' }}
-          timeout: 600000
-          # Only changed files are uploaded after the first deploy.
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/node_modules/**
-            tests/**
-            .env
-            .env.backup
-            .env.production
+        env:
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_SERVER_DIR: ${{ secrets.FTP_SERVER_DIR }}
+        run: |
+          dir="${FTP_SERVER_DIR:-}"
+          dir="${dir#./}"
+          base="ftp://$FTP_SERVER/${dir}"
+          up() {
+            for attempt in 1 2 3 4 5; do
+              if curl -sS --ssl-reqd --insecure --ftp-create-dirs --ftp-pasv --retry 3 --connect-timeout 30 \
+                   --user "$FTP_USERNAME:$FTP_PASSWORD" -T "$1" "$base$2"; then
+                echo "Uploaded $2"; return 0
+              fi
+              echo "Upload of $2 failed (attempt $attempt), retrying…"; sleep $((attempt * 5))
+            done
+            return 1
+          }
+          up release.zip release.zip
+          up deploy-unpack.php public/deploy-unpack.php
+
+      - name: Unpack on the server
+        if: steps.check.outputs.ready == 'true'
+        run: |
+          code=$(curl -sS -o unpack.json -w '%{http_code}' -X POST \
+            -A "Mozilla/5.0 (compatible; FeraHealthDeploy/1.0; +https://github.com/ferasolution/hms)" \
+            -H "Accept: application/json" -H "Content-Type: application/json" \
+            -H "X-Deploy-Key: $UNPACK_KEY" --data '{"source":"github-actions"}' \
+            --max-time 300 "$APP_URL/deploy-unpack.php")
+          cat unpack.json; echo
+          if [ "$code" != "200" ]; then
+            echo "::error::Unpacking failed with HTTP $code. Check that the subdomain's document root is the site folder or its public/ folder, and that PHP 8.3+ with the zip extension is enabled."
+            exit 1
+          fi
 
       - name: Run migrations and rebuild caches
         if: steps.check.outputs.ready == 'true'
