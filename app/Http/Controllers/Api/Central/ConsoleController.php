@@ -1,0 +1,700 @@
+<?php
+
+namespace App\Http\Controllers\Api\Central;
+
+use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
+use App\Models\Admission;
+use App\Models\Appointment;
+use App\Models\Invoice;
+use App\Models\InvoicePayment;
+use App\Models\LabOrder;
+use App\Models\Patient;
+use App\Models\Plan;
+use App\Models\PlatformSetting;
+use App\Models\Subscription;
+use App\Models\Tenant;
+use App\Models\User;
+use App\Services\Billing;
+use App\Support\Payments;
+use Carbon\CarbonPeriod;
+use Illuminate\Foundation\Application;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
+use Throwable;
+
+/**
+ * Everything the platform owner sees. These routes run without a tenant, so
+ * tenant-scoped models return rows from every hospital.
+ */
+class ConsoleController extends Controller
+{
+    public function __construct(protected Billing $billing) {}
+
+    /* ------------------------------------------------------------ overview */
+
+    public function overview(): JsonResponse
+    {
+        $byStatus = Tenant::query()->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
+        $monthStart = now()->startOfMonth();
+
+        // Sign-ups per day for the last 30 days (grouped in PHP so it works on any database).
+        $since = now()->subDays(29)->startOfDay();
+        $signups = Tenant::where('created_at', '>=', $since)->pluck('created_at')
+            ->countBy(fn ($d) => $d->toDateString());
+        $signupSeries = collect(CarbonPeriod::create($since, now()))
+            ->map(fn ($d) => ['date' => $d->toDateString(), 'count' => (int) ($signups[$d->toDateString()] ?? 0)])->values();
+
+        // Subscription revenue per month, last 6 months.
+        $from = now()->subMonths(5)->startOfMonth();
+        $subs = Subscription::where('status', 'active')->where('reviewed_at', '>=', $from)->get(['amount', 'reviewed_at']);
+        $revenueSeries = collect(range(5, 0))->map(function ($ago) use ($subs) {
+            $m = now()->subMonths($ago);
+            return [
+                'month' => $m->format('Y-m'),
+                'label' => $m->format('M'),
+                'amount' => round((float) $subs->filter(fn ($s) => $s->reviewed_at->format('Y-m') === $m->format('Y-m'))->sum('amount'), 2),
+            ];
+        })->values();
+
+        $trialsEnding = Tenant::where('status', Tenant::STATUS_TRIAL)
+            ->whereBetween('trial_ends_at', [now(), now()->addDays(7)])
+            ->orderBy('trial_ends_at')->limit(8)
+            ->get(['id', 'name', 'slug', 'type', 'trial_ends_at']);
+
+        $topTenants = Tenant::query()
+            ->withCount(['patients', 'users as doctors_count' => fn ($q) => $q->where('role', User::ROLE_DOCTOR)])
+            ->orderByDesc('patients_count')->limit(5)
+            ->get(['id', 'name', 'slug', 'type', 'status']);
+
+        return response()->json([
+            'tenants' => [
+                'total' => (int) $byStatus->sum(),
+                'trial' => (int) ($byStatus['trial'] ?? 0),
+                'active' => (int) ($byStatus['active'] ?? 0),
+                'suspended' => (int) ($byStatus['suspended'] ?? 0),
+                'new_30_days' => (int) $signupSeries->sum('count'),
+                'paying' => Tenant::whereNotNull('plan_id')->where('plan_ends_at', '>', now())
+                    ->whereIn('plan_id', Plan::where('price_monthly', '>', 0)->select('id'))->count(),
+            ],
+            'people' => [
+                'users' => User::whereNotNull('tenant_id')->count(),
+                'doctors' => User::where('role', User::ROLE_DOCTOR)->count(),
+                'staff' => User::whereIn('role', User::STAFF_ROLES)->count(),
+                'patients' => Patient::count(),
+                'active_7_days' => User::whereNotNull('tenant_id')->where('last_login_at', '>=', now()->subDays(7))->count(),
+            ],
+            'clinical' => [
+                'patients' => Patient::count(),
+                'appointments' => Appointment::count(),
+                'appointments_30_days' => Appointment::where('scheduled_at', '>=', now()->subDays(30))->count(),
+                'inpatients' => Admission::where('status', 'admitted')->count(),
+                'lab_orders' => LabOrder::count(),
+            ],
+            'revenue' => [
+                'subscriptions_total' => (float) Subscription::where('status', 'active')->sum('amount'),
+                'subscriptions_month' => (float) Subscription::where('status', 'active')->where('reviewed_at', '>=', $monthStart)->sum('amount'),
+                'pending_subscriptions' => Subscription::where('status', 'pending')->count(),
+                'hospital_collections' => $this->byCurrency(Invoice::query()),
+                'hospital_collections_month' => $this->byCurrency(Invoice::where('created_at', '>=', $monthStart)),
+                'open_invoices' => Invoice::whereIn('status', ['unpaid', 'partial'])->count(),
+            ],
+            'signups' => $signupSeries,
+            'revenue_series' => $revenueSeries,
+            'trials_ending' => $trialsEnding,
+            'top_tenants' => $topTenants,
+            'activity' => $this->activityRows(ActivityLog::with(['tenant', 'user'])->latest('id')->limit(12)->get()),
+        ]);
+    }
+
+    /* ------------------------------------------------------------ institutes */
+
+    public function tenants(Request $request): JsonResponse
+    {
+        $tenants = Tenant::query()
+            ->with('plan')
+            ->withCount(['users', 'patients', 'users as doctors_count' => fn ($q) => $q->where('role', User::ROLE_DOCTOR)])
+            ->withMax('users as last_login_at', 'last_login_at')
+            ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')))
+            ->when($request->filled('type'), fn ($q) => $q->where('type', $request->string('type')))
+            ->when($request->filled('search'), fn ($q) => $q->where(function ($q) use ($request) {
+                $term = '%'.$request->string('search').'%';
+                $q->where('name', 'like', $term)->orWhere('slug', 'like', $term);
+            }))
+            ->latest()
+            ->paginate(30);
+
+        return response()->json([
+            'data' => collect($tenants->items())->map(fn (Tenant $t) => $this->tenantRow($t)),
+            'meta' => ['total' => $tenants->total(), 'page' => $tenants->currentPage(), 'last_page' => $tenants->lastPage()],
+        ]);
+    }
+
+    public function tenant(Tenant $tenant): JsonResponse
+    {
+        $tenant->load('plan')->loadCount(['users', 'patients']);
+        $effective = $this->billing->effective($tenant);
+        $roles = User::where('tenant_id', $tenant->id)->selectRaw('role, count(*) as total')->groupBy('role')->pluck('total', 'role');
+
+        return response()->json([
+            'tenant' => $this->tenantRow($tenant) + [
+                'settings' => $tenant->settings ?? (object) [],
+                'plan_ends_at' => $tenant->plan_ends_at,
+            ],
+            'effective' => [
+                'plan' => $effective['plan']?->only('id', 'name', 'slug', 'max_staff', 'max_beds', 'storage_mb'),
+                'source' => $effective['source'],
+                'ends_at' => $effective['ends_at'],
+            ],
+            'usage' => $this->billing->usage($tenant),
+            'roles' => $roles,
+            'admins' => User::where('tenant_id', $tenant->id)->where('role', User::ROLE_ADMIN)
+                ->get(['id', 'name', 'email', 'phone', 'is_active', 'last_login_at', 'created_at']),
+            'clinical' => [
+                'patients' => Patient::where('tenant_id', $tenant->id)->count(),
+                'appointments' => Appointment::where('tenant_id', $tenant->id)->count(),
+                'appointments_30_days' => Appointment::where('tenant_id', $tenant->id)->where('scheduled_at', '>=', now()->subDays(30))->count(),
+                'inpatients' => Admission::where('tenant_id', $tenant->id)->where('status', 'admitted')->count(),
+                'lab_orders' => LabOrder::where('tenant_id', $tenant->id)->count(),
+            ],
+            'collections' => [
+                'total' => $this->byCurrency(Invoice::where('tenant_id', $tenant->id)),
+                'open_invoices' => Invoice::where('tenant_id', $tenant->id)->whereIn('status', ['unpaid', 'partial'])->count(),
+            ],
+            'subscriptions' => Subscription::with('plan')->where('tenant_id', $tenant->id)->latest()->get()
+                ->map(fn ($s) => $this->subscriptionRow($s)),
+            'activity' => $this->activityRows(ActivityLog::with(['tenant', 'user'])->where('tenant_id', $tenant->id)->latest('id')->limit(25)->get()),
+            'plans' => Plan::orderBy('price_monthly')->get(['id', 'name', 'slug', 'price_monthly']),
+        ]);
+    }
+
+    public function updateTenant(Request $request, Tenant $tenant): JsonResponse
+    {
+        $data = $request->validate([
+            'name' => ['sometimes', 'string', 'max:120'],
+            'status' => ['sometimes', Rule::in([Tenant::STATUS_TRIAL, Tenant::STATUS_ACTIVE, Tenant::STATUS_SUSPENDED])],
+            'plan_id' => ['sometimes', 'nullable', 'exists:plans,id'],
+            'plan_ends_at' => ['sometimes', 'nullable', 'date'],
+            'trial_ends_at' => ['sometimes', 'nullable', 'date'],
+        ]);
+
+        $before = $tenant->only(array_keys($data));
+        $tenant->update($data);
+
+        $changes = collect($data)->keys()->map(fn ($k) => $k.': '.(is_scalar($before[$k] ?? null) ? $before[$k] : ($before[$k] ?? '—')).' → '.($tenant->{$k} instanceof \DateTimeInterface ? $tenant->{$k}->toDateString() : ($tenant->{$k} ?? '—')))->implode(', ');
+        ActivityLog::record('tenant.updated', "Platform changed {$tenant->name}: {$changes}", $data, $tenant->id);
+
+        return $this->tenant($tenant->refresh());
+    }
+
+    /** Sign in as the institute's admin to help them. Short-lived and logged. */
+    public function impersonate(Request $request, Tenant $tenant): JsonResponse
+    {
+        $admin = User::where('tenant_id', $tenant->id)->where('role', User::ROLE_ADMIN)->where('is_active', true)->orderBy('id')->first();
+        abort_unless($admin, 422, 'This hospital has no active admin to sign in as.');
+
+        $token = $admin->createToken('support:'.$request->user()->email, ['*'], now()->addHours(2))->plainTextToken;
+        ActivityLog::record('support.impersonate', "{$request->user()->email} opened {$tenant->name} as {$admin->name} for support", ['admin_id' => $admin->id], $tenant->id, $request->user());
+
+        return response()->json(['slug' => $tenant->slug, 'token' => $token, 'admin' => $admin->only('id', 'name', 'email')]);
+    }
+
+    /* ------------------------------------------------------------ subscriptions */
+
+    public function subscriptions(Request $request): JsonResponse
+    {
+        $status = $request->validate(['status' => ['nullable', Rule::in(['pending', 'active', 'rejected'])]])['status'] ?? null;
+
+        $subs = Subscription::with(['tenant', 'plan', 'requester', 'reviewer'])
+            ->when($status, fn ($q) => $q->where('status', $status))
+            ->latest()->paginate(50);
+
+        return response()->json([
+            'data' => collect($subs->items())->map(fn ($s) => $this->subscriptionRow($s, true)),
+            'meta' => ['total' => $subs->total()],
+            'summary' => [
+                'pending' => Subscription::where('status', 'pending')->count(),
+                'active' => Subscription::where('status', 'active')->count(),
+                'revenue' => (float) Subscription::where('status', 'active')->sum('amount'),
+            ],
+        ]);
+    }
+
+    public function approveSubscription(Request $request, Subscription $subscription): JsonResponse
+    {
+        abort_unless($subscription->status === 'pending', 422, 'Only pending payments can be approved.');
+
+        DB::transaction(function () use ($request, $subscription) {
+            $tenant = Tenant::findOrFail($subscription->tenant_id);
+            $plan = Plan::findOrFail($subscription->plan_id);
+            $this->billing->activate($tenant, $plan, $subscription->months);
+
+            $subscription->status = 'active';
+            $subscription->starts_at = now();
+            $subscription->ends_at = $tenant->plan_ends_at;
+            $subscription->reviewed_by = $request->user()->id;
+            $subscription->reviewed_at = now();
+            $subscription->save();
+
+            app(\App\Services\Notifier::class)->send(app(\App\Services\Notifier::class)->roleIds($tenant->id, [User::ROLE_ADMIN]), 'billing',
+                "You’re on {$plan->name}", 'Your payment was confirmed. Your plan runs until '.$tenant->plan_ends_at->toFormattedDateString().'.', '/billing', $tenant->id);
+            ActivityLog::record('subscription.approved', "Approved {$plan->name} × {$subscription->months} ".($subscription->months === 1 ? 'month' : 'months')." for {$tenant->name}", ['subscription_id' => $subscription->id], $tenant->id, $request->user());
+        });
+
+        return response()->json($this->subscriptionRow($subscription->load(['tenant', 'plan', 'requester', 'reviewer']), true));
+    }
+
+    public function rejectSubscription(Request $request, Subscription $subscription): JsonResponse
+    {
+        abort_unless($subscription->status === 'pending', 422, 'Only pending payments can be rejected.');
+        $data = $request->validate(['note' => ['nullable', 'string', 'max:500']]);
+
+        $subscription->status = 'rejected';
+        $subscription->note = $data['note'] ?? $subscription->note;
+        $subscription->reviewed_by = $request->user()->id;
+        $subscription->reviewed_at = now();
+        $subscription->save();
+
+        $reason = ! empty($data['note']) ? ": {$data['note']}" : '';
+        app(\App\Services\Notifier::class)->send(app(\App\Services\Notifier::class)->roleIds($subscription->tenant_id, [User::ROLE_ADMIN]), 'billing',
+            'We couldn’t confirm your plan payment', $data['note'] ?? 'Please check the transaction ID and send it again.', '/billing', $subscription->tenant_id);
+        ActivityLog::record('subscription.rejected', "Rejected a plan payment{$reason}", ['subscription_id' => $subscription->id], $subscription->tenant_id, $request->user());
+
+        return response()->json($this->subscriptionRow($subscription->load(['tenant', 'plan', 'requester', 'reviewer']), true));
+    }
+
+    /* ------------------------------------------------------------ student payments, users, activity */
+
+    /** Money hospitals collected from their patients (for insight, not platform revenue). */
+    public function payments(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'tenant_id' => ['nullable', 'integer'],
+            'method' => ['nullable', 'string', 'max:20'],
+        ]);
+
+        $rows = InvoicePayment::with(['tenant', 'invoice:id,number,currency,patient_id', 'invoice.patient:id,first_name,last_name,mrn'])
+            ->when($data['tenant_id'] ?? null, fn ($q, $t) => $q->where('tenant_id', $t))
+            ->when($data['method'] ?? null, fn ($q, $m) => $q->where('method', $m))
+            ->latest('paid_at')->paginate(50);
+
+        return response()->json([
+            'data' => collect($rows->items())->map(fn (InvoicePayment $p) => [
+                'id' => $p->id, 'amount' => $p->amount, 'method' => $p->method, 'reference' => $p->reference, 'paid_at' => $p->paid_at,
+                'currency' => $p->invoice?->currency, 'invoice' => $p->invoice?->number,
+                'patient' => $p->invoice?->patient ? ['name' => $p->invoice->patient->name, 'mrn' => $p->invoice->patient->mrn] : null,
+                'tenant' => $p->tenant?->only('id', 'name', 'slug'),
+            ]),
+            'meta' => ['total' => $rows->total()],
+            'summary' => [
+                'payments' => InvoicePayment::count(),
+                'month' => InvoicePayment::where('paid_at', '>=', now()->startOfMonth())->count(),
+                'volume' => $this->byCurrency(Invoice::query()),
+            ],
+        ]);
+    }
+
+    public function users(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'search' => ['nullable', 'string', 'max:100'],
+            'role' => ['nullable', Rule::in(User::TENANT_ROLES)],
+            'tenant_id' => ['nullable', 'integer'],
+        ]);
+
+        $users = User::with('tenant')
+            ->whereNotNull('tenant_id')
+            ->when($data['role'] ?? null, fn ($q, $r) => $q->where('role', $r))
+            ->when($data['tenant_id'] ?? null, fn ($q, $t) => $q->where('tenant_id', $t))
+            ->when($data['search'] ?? null, fn ($q, $s) => $q->where(fn ($q) => $q->where('name', 'like', "%{$s}%")->orWhere('email', 'like', "%{$s}%")))
+            ->latest()->paginate(50);
+
+        $roles = User::whereNotNull('tenant_id')->selectRaw('role, count(*) as total')->groupBy('role')->pluck('total', 'role');
+
+        return response()->json([
+            'data' => collect($users->items())->map(fn (User $u) => [
+                'id' => $u->id, 'name' => $u->name, 'email' => $u->email, 'phone' => $u->phone, 'role' => $u->role,
+                'is_active' => (bool) $u->is_active, 'last_login_at' => $u->last_login_at, 'created_at' => $u->created_at,
+                'tenant' => $u->tenant?->only('id', 'name', 'slug'),
+            ]),
+            'meta' => ['total' => $users->total()],
+            'roles' => $roles,
+        ]);
+    }
+
+    public function activity(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'tenant_id' => ['nullable', 'integer'],
+            'action' => ['nullable', 'string', 'max:40'],
+            'page' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        $logs = ActivityLog::with(['tenant', 'user'])
+            ->when($data['tenant_id'] ?? null, fn ($q, $t) => $q->where('tenant_id', $t))
+            ->when($data['action'] ?? null, fn ($q, $a) => $q->where('action', 'like', "{$a}%"))
+            ->latest('id')->paginate(50);
+
+        return response()->json([
+            'data' => $this->activityRows(collect($logs->items())),
+            'meta' => ['total' => $logs->total(), 'page' => $logs->currentPage(), 'last_page' => $logs->lastPage()],
+        ]);
+    }
+
+    /** Give a user a new temporary password, sign them out everywhere, and log it. */
+    public function resetPassword(Request $request, User $user): JsonResponse
+    {
+        abort_if($user->tenant_id === null, 422, 'Use the owner sign-in to change your own password.');
+        $data = $request->validate(['password' => ['nullable', 'string', 'min:8', 'max:100']]);
+
+        $password = $data['password'] ?? self::temporaryPassword();
+        $user->password = $password;
+        $user->save();
+        $user->tokens()->delete();
+
+        $tenant = Tenant::find($user->tenant_id);
+        ActivityLog::record('support.password_reset', "{$request->user()->email} reset the password of {$user->name} ({$user->email})", ['user_id' => $user->id], $user->tenant_id, $request->user());
+
+        return response()->json([
+            'password' => $password,
+            'user' => $user->only('id', 'name', 'email'),
+            'sign_in_url' => $tenant ? url("/{$tenant->slug}/login") : null,
+        ]);
+    }
+
+    public function updateUser(Request $request, User $user): JsonResponse
+    {
+        abort_if($user->tenant_id === null, 422, 'Owner accounts are managed separately.');
+        $data = $request->validate(['is_active' => ['required', 'boolean']]);
+
+        $user->is_active = $data['is_active'];
+        $user->save();
+        if (! $user->is_active) {
+            $user->tokens()->delete();
+        }
+
+        ActivityLog::record('support.user_access', ($user->is_active ? 'Restored access for ' : 'Disabled access for ')."{$user->name} ({$user->email})", ['user_id' => $user->id], $user->tenant_id, $request->user());
+
+        return response()->json(['id' => $user->id, 'is_active' => (bool) $user->is_active]);
+    }
+
+    /** Easy to read out over the phone: Word-Word-1234. */
+    public static function temporaryPassword(): string
+    {
+        $words = ['Maple', 'River', 'Cedar', 'Harbor', 'Summit', 'Willow', 'Falcon', 'Meadow', 'Canyon', 'Aspen', 'Orbit', 'Prairie'];
+
+        return $words[random_int(0, count($words) - 1)].'-'.$words[random_int(0, count($words) - 1)].'-'.random_int(1000, 9999);
+    }
+
+    /* ------------------------------------------------------------ system health */
+
+    public function health(): JsonResponse
+    {
+        $checks = [];
+
+        // Database
+        try {
+            $t = microtime(true);
+            DB::select('select 1');
+            $ms = round((microtime(true) - $t) * 1000, 1);
+            $driver = DB::connection()->getDriverName();
+            $size = null;
+            if ($driver === 'mysql' || $driver === 'mariadb') {
+                $size = (float) (DB::selectOne('select sum(data_length + index_length) as s from information_schema.tables where table_schema = database()')->s ?? 0);
+            } elseif ($driver === 'sqlite') {
+                $path = DB::connection()->getDatabaseName();
+                $size = is_file($path) ? filesize($path) : null;
+            }
+            $checks['database'] = ['ok' => true, 'driver' => $driver, 'latency_ms' => $ms, 'size_mb' => $size !== null ? round($size / 1048576, 1) : null];
+        } catch (Throwable $e) {
+            $checks['database'] = ['ok' => false, 'error' => $e->getMessage()];
+        }
+
+        // Migrations
+        try {
+            $ran = app('migrator')->getRepository()->getRan();
+            $files = collect(File::glob(database_path('migrations/*.php')))->map(fn ($f) => basename($f, '.php'));
+            $pending = $files->diff($ran)->values();
+            $checks['migrations'] = ['ok' => $pending->isEmpty(), 'ran' => count($ran), 'pending' => $pending, 'latest' => collect($ran)->sort()->last()];
+        } catch (Throwable $e) {
+            $checks['migrations'] = ['ok' => false, 'error' => $e->getMessage()];
+        }
+
+        // Cache
+        try {
+            Cache::put('health:ping', 'pong', 10);
+            $checks['cache'] = ['ok' => Cache::get('health:ping') === 'pong', 'store' => config('cache.default')];
+        } catch (Throwable $e) {
+            $checks['cache'] = ['ok' => false, 'error' => $e->getMessage()];
+        }
+
+        // Storage and disk
+        $free = @disk_free_space(storage_path());
+        $total = @disk_total_space(storage_path());
+        $uploads = Cache::remember('health:uploads', 600, function () {
+            $dir = Storage::disk('public')->path('tenants');
+            if (! is_dir($dir)) {
+                return ['files' => 0, 'mb' => 0];
+            }
+            $bytes = 0;
+            $count = 0;
+            foreach (File::allFiles($dir) as $f) {
+                $bytes += $f->getSize();
+                $count++;
+            }
+
+            return ['files' => $count, 'mb' => round($bytes / 1048576, 1)];
+        });
+        $writable = collect(['storage/app', 'storage/framework/cache', 'storage/framework/views', 'storage/logs', 'bootstrap/cache'])
+            ->mapWithKeys(fn ($d) => [$d => is_writable(base_path($d))]);
+        $checks['storage'] = [
+            'ok' => $writable->every(fn ($w) => $w) && file_exists(public_path('storage')),
+            'uploads' => $uploads,
+            'disk_free_gb' => $free ? round($free / 1073741824, 1) : null,
+            'disk_total_gb' => $total ? round($total / 1073741824, 1) : null,
+            'public_link' => file_exists(public_path('storage')),
+            'writable' => $writable,
+        ];
+
+        // Queue
+        try {
+            $checks['queue'] = [
+                'ok' => true,
+                'connection' => config('queue.default'),
+                'waiting' => DB::table('jobs')->count(),
+                'failed' => DB::table('failed_jobs')->count(),
+            ];
+            $checks['queue']['ok'] = $checks['queue']['failed'] === 0;
+        } catch (Throwable $e) {
+            $checks['queue'] = ['ok' => false, 'error' => $e->getMessage()];
+        }
+
+        // Recent errors from the log
+        $errors = [];
+        $log = storage_path('logs/laravel.log');
+        if (is_file($log)) {
+            $fh = fopen($log, 'r');
+            $size = filesize($log);
+            fseek($fh, max(0, $size - 131072));
+            $tail = stream_get_contents($fh);
+            fclose($fh);
+            preg_match_all('/^\[(\d{4}-\d{2}-\d{2}[ T][\d:]+)[^\]]*\] \w+\.(ERROR|CRITICAL|ALERT|EMERGENCY): (.+)$/m', $tail, $m, PREG_SET_ORDER);
+            foreach (array_slice(array_reverse($m), 0, 10) as $row) {
+                $errors[] = ['at' => $row[1], 'level' => $row[2], 'message' => mb_substr($row[3], 0, 300)];
+            }
+        }
+        $latest = $errors ? \Illuminate\Support\Carbon::parse($errors[0]['at']) : null;
+        $checks['errors'] = ['ok' => ! $latest || $latest->lt(now()->subDay()), 'recent' => $errors];
+
+        // Environment
+        $exts = collect(['pdo_mysql', 'mbstring', 'openssl', 'fileinfo', 'gd', 'curl', 'zip'])->mapWithKeys(fn ($e) => [$e => extension_loaded($e)]);
+        $checks['app'] = [
+            'ok' => ! config('app.debug') && app()->isProduction(),
+            'php' => PHP_VERSION,
+            'laravel' => Application::VERSION,
+            'environment' => app()->environment(),
+            'debug' => (bool) config('app.debug'),
+            'url' => config('app.url'),
+            'timezone' => config('app.timezone'),
+            'extensions' => $exts,
+            'deploy_hook' => strlen((string) config('app.deploy_token')) >= 32,
+        ];
+
+        return response()->json(['checks' => $checks, 'checked_at' => now()]);
+    }
+
+    /* ------------------------------------------------------------ platform settings */
+
+    public function settings(): JsonResponse
+    {
+        return response()->json([
+            'payments' => PlatformSetting::get('payments', (object) []),
+            'support' => PlatformSetting::get('support', (object) []),
+        ]);
+    }
+
+    public function updateSettings(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'payments' => ['sometimes', 'array'],
+            'payments.bank' => ['nullable', 'string', 'max:500'],
+            'payments.paypal' => ['nullable', 'string', 'max:255'],
+            'payments.wise' => ['nullable', 'string', 'max:255'],
+            'payments.card' => ['nullable', 'url:http,https', 'max:500'],
+            'payments.instructions' => ['nullable', 'string', 'max:1000'],
+            'support' => ['sometimes', 'array'],
+            'support.email' => ['nullable', 'email', 'max:255'],
+            'support.phone' => ['nullable', 'string', 'max:30'],
+        ]);
+
+        foreach (['payments', 'support'] as $key) {
+            if (array_key_exists($key, $data)) {
+                PlatformSetting::put($key, $data[$key]);
+            }
+        }
+        ActivityLog::record('platform.settings', 'Updated platform settings', [], null, $request->user());
+
+        return $this->settings();
+    }
+
+    /* ------------------------------------------------------------ plans */
+
+    public function plans(): JsonResponse
+    {
+        $counts = Tenant::whereNotNull('plan_id')->where('plan_ends_at', '>', now())
+            ->selectRaw('plan_id, count(*) as total')->groupBy('plan_id')->pluck('total', 'plan_id');
+
+        return response()->json(['data' => Plan::orderBy('price_monthly')->get()->map(fn (Plan $p) => $p->only(
+            'id', 'name', 'slug', 'price_monthly', 'currency', 'max_staff', 'max_beds', 'storage_mb', 'is_active',
+        ) + ['subscribers' => (int) ($counts[$p->id] ?? 0)])]);
+    }
+
+    public function createPlan(Request $request): JsonResponse
+    {
+        return $this->savePlan($request, null);
+    }
+
+    public function updatePlan(Request $request, Plan $plan): JsonResponse
+    {
+        return $this->savePlan($request, $plan);
+    }
+
+    protected function savePlan(Request $request, ?Plan $plan): JsonResponse
+    {
+        $data = $request->validate([
+            'name' => [$plan ? 'sometimes' : 'required', 'string', 'max:60'],
+            'price_monthly' => [$plan ? 'sometimes' : 'required', 'numeric', 'min:0', 'max:100000'],
+            'max_staff' => ['nullable', 'integer', 'min:1'],
+            'max_beds' => ['nullable', 'integer', 'min:1'],
+            'storage_mb' => ['nullable', 'integer', 'min:1'],
+            'is_active' => ['sometimes', 'boolean'],
+        ]);
+
+        if ($plan) {
+            abort_if($plan->slug === 'free' && isset($data['price_monthly']) && (float) $data['price_monthly'] > 0, 422, 'The Free plan must stay free.');
+            abort_if($plan->slug === 'free' && array_key_exists('is_active', $data) && ! $data['is_active'], 422, 'The Free plan can’t be turned off; hospitals fall back to it.');
+            $plan->update($data);
+        } else {
+            $slug = \Illuminate\Support\Str::slug($data['name']) ?: 'plan';
+            abort_if(Plan::where('slug', $slug)->exists(), 422, 'A plan with this name already exists.');
+            $plan = Plan::create($data + ['slug' => $slug, 'currency' => 'USD', 'is_active' => true]);
+        }
+
+        ActivityLog::record('platform.plan', "Saved plan {$plan->name}: \${$plan->price_monthly}/month", ['plan_id' => $plan->id], null, $request->user());
+
+        return $this->plans();
+    }
+
+    /* ------------------------------------------------------------ announcements to hospitals */
+
+    public function announcements(): JsonResponse
+    {
+        return response()->json(['data' => \App\Models\Announcement::whereNull('tenant_id')->latest('id')->limit(50)
+            ->get(['id', 'title', 'body', 'created_at'])]);
+    }
+
+    public function broadcast(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:200'],
+            'body' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $a = new \App\Models\Announcement($data + ['audience' => 'admins']);
+        $a->user_id = $request->user()->id;
+        $a->save();
+
+        $admins = User::where('role', User::ROLE_ADMIN)->whereNotNull('tenant_id')->where('is_active', true)->pluck('id')->all();
+        app(\App\Services\Notifier::class)->send($admins, 'platform', $data['title'], \Illuminate\Support\Str::limit($data['body'], 140), '/');
+        ActivityLog::record('platform.announcement', "Sent “{$data['title']}” to ".count($admins).' hospital admins', [], null, $request->user());
+
+        return response()->json(['id' => $a->id, 'sent_to' => count($admins)], 201);
+    }
+
+    /* ------------------------------------------------------------ exports */
+
+    public function exportTenants(): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $rows = Tenant::with('plan')->withCount(['users', 'patients'])->latest()->get()->map(fn (Tenant $t) => [
+            $t->name, $t->slug, $t->type, $t->status, $this->billing->effective($t)['plan']?->name,
+            optional($t->trial_ends_at)->toDateString(), optional($t->plan_ends_at)->toDateString(),
+            $t->users_count, $t->patients_count, $t->created_at?->toDateString(),
+        ]);
+
+        return \App\Support\Csv::download('hospitals.csv', ['Name', 'Address', 'Type', 'Status', 'Plan', 'Trial ends', 'Plan ends', 'Users', 'Patients', 'Joined'], $rows);
+    }
+
+    public function exportUsers(): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $rows = User::with('tenant')->whereNotNull('tenant_id')->orderBy('tenant_id')->get()->map(fn (User $u) => [
+            $u->name, $u->email, $u->role, $u->tenant?->name, $u->is_active ? 'active' : 'disabled',
+            optional($u->last_login_at)->toDateTimeString(), $u->created_at?->toDateString(),
+        ]);
+
+        return \App\Support\Csv::download('users.csv', ['Name', 'Email', 'Role', 'Hospital', 'Access', 'Last sign-in', 'Joined'], $rows);
+    }
+
+    /* ------------------------------------------------------------ helpers */
+
+    /** Sums per currency, biggest first: [['currency' => 'USD', 'amount' => 1200.0], ...] */
+    protected function byCurrency($query): array
+    {
+        return $query->where('status', '!=', 'void')->selectRaw('currency, sum(paid) as amount')->groupBy('currency')->get()
+            ->map(fn ($r) => ['currency' => $r->currency, 'amount' => (float) $r->amount])
+            ->sortByDesc('amount')->values()->all();
+    }
+
+    protected function tenantRow(Tenant $t): array
+    {
+        $effective = $this->billing->effective($t);
+
+        return [
+            'id' => $t->id,
+            'name' => $t->name,
+            'slug' => $t->slug,
+            'type' => $t->type,
+            'status' => $t->status,
+            'trial_ends_at' => $t->trial_ends_at,
+            'plan' => $t->relationLoaded('plan') ? $t->plan?->only('id', 'name', 'slug') : null,
+            'plan_ends_at' => $t->plan_ends_at,
+            'effective_plan' => $effective['plan']?->name,
+            'plan_source' => $effective['source'],
+            'users_count' => $t->users_count ?? null,
+            'patients_count' => $t->patients_count ?? null,
+            'doctors_count' => $t->doctors_count ?? null,
+            'last_login_at' => $t->last_login_at ?? null,
+            'created_at' => $t->created_at,
+        ];
+    }
+
+    protected function subscriptionRow(Subscription $s, bool $withTenant = false): array
+    {
+        return array_filter([
+            'id' => $s->id, 'status' => $s->status, 'months' => $s->months, 'amount' => $s->amount, 'currency' => $s->currency,
+            'payment_method' => $s->gateway, 'payment_reference' => $s->payment_reference, 'note' => $s->note,
+            'created_at' => $s->created_at, 'reviewed_at' => $s->reviewed_at, 'ends_at' => $s->ends_at,
+            'plan' => $s->plan?->only('id', 'name', 'slug'),
+            'requester' => $s->relationLoaded('requester') ? $s->requester?->only('id', 'name', 'email') : null,
+            'reviewer' => $s->relationLoaded('reviewer') ? $s->reviewer?->only('id', 'name') : null,
+            'tenant' => $withTenant ? $s->tenant?->only('id', 'name', 'slug') : null,
+        ], fn ($v, $k) => $v !== null || ! in_array($k, ['tenant', 'requester', 'reviewer'], true), ARRAY_FILTER_USE_BOTH);
+    }
+
+    protected function activityRows($logs): array
+    {
+        return collect($logs)->map(fn (ActivityLog $l) => [
+            'id' => $l->id,
+            'action' => $l->action,
+            'description' => $l->description,
+            'created_at' => $l->created_at,
+            'ip' => $l->ip,
+            'tenant' => $l->tenant?->only('id', 'name', 'slug'),
+            'user' => $l->user?->only('id', 'name', 'role'),
+        ])->values()->all();
+    }
+}
