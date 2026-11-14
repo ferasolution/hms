@@ -2,7 +2,7 @@
 
 export const ROLE_LABEL = {
     admin: 'Admin', doctor: 'Doctor', nurse: 'Nurse', receptionist: 'Front desk', pharmacist: 'Pharmacist',
-    lab_technician: 'Lab technician', accountant: 'Accounts', patient: 'Patient', super_admin: 'Owner',
+    lab_technician: 'Lab technician', accountant: 'Accounts', storekeeper: 'Store keeper', hr_manager: 'HR manager', patient: 'Patient', super_admin: 'Owner',
 };
 
 export const TYPE_LABEL = { hospital: 'Hospital', clinic: 'Clinic', diagnostic: 'Diagnostic centre' };
@@ -77,4 +77,32 @@ export function localDay(iso) {
     if (!iso) return '';
     const d = new Date(iso);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+export const TRIAGE = {
+    1: ['Resuscitation', 'bg-red-600 text-white', 'Immediate'],
+    2: ['Emergent', 'bg-orange-500 text-white', '10 min'],
+    3: ['Urgent', 'bg-amber-400 text-amber-950', '30 min'],
+    4: ['Less urgent', 'bg-emerald-500 text-white', '60 min'],
+    5: ['Non-urgent', 'bg-sky-500 text-white', '120 min'],
+};
+
+export const DISPOSITIONS = { discharged: 'Discharged home', admitted: 'Admitted', transferred: 'Transferred', referred: 'Referred', lwbs: 'Left without being seen', lama: 'Left against advice', deceased: 'Deceased' };
+
+export const FREQUENCIES = { OD: 'Once daily', BD: 'Twice daily', TDS: 'Three times daily', QID: 'Four times daily', Q6H: 'Every 6 hours', Q8H: 'Every 8 hours', HS: 'At bedtime', PRN: 'As needed', STAT: 'Once now' };
+
+export const ROUTES = { oral: 'Oral', iv: 'IV', im: 'IM', sc: 'SC', inhaled: 'Inhaled', topical: 'Topical', sublingual: 'Sublingual', rectal: 'Rectal', other: 'Other' };
+
+export const LEAVE_TYPES = { annual: 'Annual', sick: 'Sick', casual: 'Casual', unpaid: 'Unpaid', maternity: 'Maternity', paternity: 'Paternity', study: 'Study' };
+
+export const EXPENSE_CATEGORIES = { salaries: 'Salaries', utilities: 'Utilities', supplies: 'Supplies', pharmacy_stock: 'Pharmacy stock', maintenance: 'Maintenance', rent: 'Rent', equipment: 'Equipment', marketing: 'Marketing', insurance: 'Insurance', taxes: 'Taxes', other: 'Other' };
+
+export const STORE_CATEGORIES = { consumable: 'Consumable', surgical: 'Surgical', linen: 'Linen', reagent: 'Reagent', equipment: 'Equipment', stationery: 'Stationery', housekeeping: 'Housekeeping', other: 'Other' };
+
+export const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** "1 h 05 m" style duration. */
+export function minutes(m) {
+    if (m == null) return '—';
+    return m < 60 ? `${m} m` : `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')} m`;
 }

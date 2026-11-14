@@ -98,7 +98,9 @@ class NursingController extends Controller
         // Allergy check: warn unless the prescriber confirms.
         $clash = PatientAllergy::where('patient_id', $admission->patient_id)->where('status', 'active')->where('type', 'drug')->get()
             ->first(fn ($a) => stripos($name, $a->allergen) !== false || ($medicine?->generic_name && stripos($medicine->generic_name, $a->allergen) !== false));
-        abort_if($clash && ! $request->boolean('override_allergy'), 409, "Allergy alert: the patient is allergic to {$clash->allergen} ({$clash->severity}). Confirm to prescribe anyway.");
+        if ($clash && ! $request->boolean('override_allergy')) {
+            abort(409, "Allergy alert: the patient is allergic to {$clash->allergen} ({$clash->severity}). Confirm to prescribe anyway.");
+        }
 
         $order = MedicationOrder::create([
             'admission_id' => $admission->id,

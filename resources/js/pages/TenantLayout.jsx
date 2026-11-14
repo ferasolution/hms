@@ -11,7 +11,7 @@ import SearchPalette from '../components/SearchPalette';
 import { ROLE_LABEL, TYPE_LABEL } from '../lib/hms';
 
 // Which module each page belongs to (Settings → Modules can switch them off).
-const MODULE_OF = { appointments: 'appointments', inpatients: 'ipd', pharmacy: 'pharmacy', lab: 'lab', billing: 'billing', insurance: 'insurance' };
+const MODULE_OF = { appointments: 'appointments', emergency: 'emergency', inpatients: 'ipd', nursing: 'nursing', pharmacy: 'pharmacy', lab: 'lab', billing: 'billing', insurance: 'insurance', store: 'inventory', hr: 'hr', finance: 'finance', reports: 'reports' };
 
 export default function TenantLayout() {
     const { tenant } = useParams();
@@ -74,7 +74,9 @@ export default function TenantLayout() {
         { label: 'Patients', links: [
             { to: `${t}/patients`, label: 'Patients', icon: 'users' },
             is('admin', 'receptionist', 'doctor', 'nurse') && { to: `${t}/appointments`, label: is('doctor') ? 'My appointments' : 'Appointments', icon: 'calendar' },
+            is('admin', 'receptionist', 'doctor', 'nurse') && { to: `${t}/emergency`, label: 'Emergency', icon: 'ambulance' },
             is('admin', 'receptionist', 'doctor', 'nurse') && { to: `${t}/inpatients`, label: 'Inpatients', icon: 'bed' },
+            is('admin', 'doctor', 'nurse') && { to: `${t}/nursing`, label: 'Ward round · eMAR', icon: 'syringe' },
         ] },
         { label: 'Services', links: [
             is('admin', 'doctor', 'nurse', 'receptionist', 'lab_technician') && { to: `${t}/lab`, label: 'Lab & imaging', icon: 'flask' },
@@ -82,8 +84,14 @@ export default function TenantLayout() {
             is('admin', 'accountant', 'receptionist') && { to: `${t}/billing`, label: 'Billing', icon: 'receipt' },
             is('admin', 'accountant', 'receptionist') && { to: `${t}/insurance`, label: 'Insurance', icon: 'shield' },
         ] },
+        is('admin', 'storekeeper', 'pharmacist', 'accountant', 'hr_manager') && { label: 'Operations', links: [
+            is('admin', 'storekeeper', 'pharmacist', 'accountant') && { to: `${t}/store`, label: 'Store & purchasing', icon: 'box' },
+            is('admin', 'accountant') && { to: `${t}/finance`, label: 'Finance', icon: 'wallet' },
+            is('admin', 'accountant') && { to: `${t}/reports`, label: 'Reports', icon: 'chart' },
+        ] },
         { label: 'Team', links: [
             { to: `${t}/staff`, label: 'Staff & roster', icon: 'stethoscope' },
+            { to: `${t}/hr`, label: is('admin', 'hr_manager') ? 'HR · leave & attendance' : 'My leave & attendance', icon: 'briefcase' },
         ] },
         isAdmin && { label: 'Manage', links: [
             { to: `${t}/people`, label: 'People & access', icon: 'users' },

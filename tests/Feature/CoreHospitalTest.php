@@ -116,9 +116,10 @@ class CoreHospitalTest extends TestCase
         $this->as('storekeeper')->postJson("/api/store/orders/{$po['id']}/receive", ['items' => []])->assertUnprocessable();
         $this->as('admin')->postJson("/api/store/orders/{$po['id']}/approve")->assertOk()->assertJsonPath('status', 'approved');
 
+        $line = collect($po['items'])->keyBy(fn ($l) => $l['inventory_item_id'] ? 'gloves' : 'med');
         $this->as('storekeeper')->postJson("/api/store/orders/{$po['id']}/receive", ['items' => [
-            ['id' => $po['items'][0]['id'], 'quantity' => 20],
-            ['id' => $po['items'][1]['id'], 'quantity' => 400, 'batch_no' => 'B-77', 'expiry_date' => now()->addYear()->toDateString()],
+            ['id' => $line['gloves']['id'], 'quantity' => 20],
+            ['id' => $line['med']['id'], 'quantity' => 400, 'batch_no' => 'B-77', 'expiry_date' => now()->addYear()->toDateString()],
         ]])->assertOk()->assertJsonPath('status', 'partial');
 
         $this->assertSame(25, InventoryItem::withoutGlobalScopes()->find($gloves)->stock);

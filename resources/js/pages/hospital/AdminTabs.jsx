@@ -6,11 +6,17 @@ import { dateTime } from '../../lib/format';
 export const MODULES = [
     ['appointments', 'Appointments', 'Booking, doctor schedules and the waiting-room queue.'],
     ['opd', 'Consultations (OPD)', 'Doctor and nursing notes, vitals, diagnosis and plans.'],
+    ['emergency', 'Emergency & ambulance', 'Triage board, ER visits, dispositions and ambulance dispatch.'],
     ['ipd', 'Inpatients (IPD)', 'Wards, beds, admissions, transfers and discharge.'],
+    ['nursing', 'Ward nursing · eMAR', 'Medication charts, dose recording, nursing notes and fluid balance.'],
     ['pharmacy', 'Pharmacy', 'Medicine stock and dispensing prescriptions.'],
     ['lab', 'Lab & imaging', 'Test orders, sample collection and results.'],
     ['billing', 'Billing', 'Patient bills, payments and receipts.'],
     ['insurance', 'Insurance claims', 'Send bills to insurers and record what they pay.'],
+    ['inventory', 'Store & purchasing', 'Stock, suppliers and purchase orders with two-person approval.'],
+    ['hr', 'HR', 'Leave requests and daily attendance.'],
+    ['finance', 'Finance', 'Expenses, approvals and the profit & loss view.'],
+    ['reports', 'Reports', 'Census, OPD, emergency, lab, pharmacy and revenue reports.'],
     ['roster', 'Duty roster', 'Weekly staff shifts.'],
     ['portal', 'Patient portal', 'Patients sign in to see results and book visits.'],
 ];

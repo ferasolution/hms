@@ -104,7 +104,7 @@ return new class extends Migration
             $table->string('reason', 300)->nullable();
             $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
             $table->timestamps();
-            $table->index(['medication_order_id', 'scheduled_for']);
+            $table->index(['medication_order_id', 'scheduled_for'], 'med_admin_order_scheduled_idx');
         });
 
         Schema::create('nursing_notes', function (Blueprint $table) {
