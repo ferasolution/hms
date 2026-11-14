@@ -231,6 +231,17 @@ class InvoiceController extends Controller
         return response()->json(['data' => $rows, 'total' => round((float) $rows->sum('amount'), 2)]);
     }
 
+    /** Bill a service from the price list to the patient's open bill. */
+    public function chargeService(Request $request, Patient $patient): JsonResponse
+    {
+        $data = $request->validate(['service_id' => ['required', 'integer'], 'quantity' => ['nullable', 'numeric', 'min:0.01', 'max:1000']]);
+        $service = \App\Models\Service::where('is_active', true)->findOrFail($data['service_id']);
+        $invoice = $this->hospital->charge($patient, $service->category === 'consultation' ? 'consultation' : 'procedure', $service->name, (float) $service->price, (float) ($data['quantity'] ?? 1), $service);
+        abort_unless($invoice, 422, 'This service has no price.');
+
+        return response()->json($this->full($invoice), 201);
+    }
+
     public function export(Request $request): \Symfony\Component\HttpFoundation\StreamedResponse
     {
         $rows = Invoice::with('patient')->latest('id')->limit(10000)->get()->map(fn (Invoice $i) => [

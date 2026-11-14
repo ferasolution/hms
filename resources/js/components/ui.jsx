@@ -7,14 +7,14 @@ import { fieldError } from '../lib/api';
 
 export function Logo({ to = '/', className = '', light = false }) {
     return (
-        <Link to={to} className={`group inline-flex items-center gap-2.5 ${className}`} aria-label="Fera HealthSphere home">
+        <Link to={to} className={`group inline-flex items-center gap-2.5 ${className}`} aria-label="Fera HospitalOS home">
             <span className="relative grid h-9 w-9 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-[#14b8a6] via-[#0e8a7e] to-[#0a2f3a] text-white shadow-[0_6px_18px_-6px_rgba(20,184,166,.7)] transition-transform duration-300 group-hover:rotate-[8deg]">
                 <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                     <path d="M12 4v16M4 12h16" opacity=".35" />
                     <path d="M2.5 13h4l2-5 3.5 9 2.5-6 1.5 2h5.5" />
                 </svg>
             </span>
-            <span className={`font-display text-lg font-extrabold tracking-tight ${light ? 'text-white' : 'text-ink-deep'}`}>Fera <span className={light ? 'text-[#5eead4]' : 'text-ink'}>HealthSphere</span></span>
+            <span className={`font-display text-lg font-extrabold tracking-tight ${light ? 'text-white' : 'text-ink-deep'}`}>Fera <span className={light ? 'text-[#5eead4]' : 'text-ink'}>HospitalOS</span></span>
         </Link>
     );
 }

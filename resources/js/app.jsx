@@ -34,7 +34,7 @@ const Landing = lazy(() => import('./pages/Landing'));
 import PlatformSetup from './pages/PlatformSetup';
 import Install from './pages/Install';
 
-const TITLES = { '/': 'Fera HealthSphere', '/register': 'Create your hospital', '/login': 'Sign in', '/install': 'Install' };
+const TITLES = { '/': 'Fera HospitalOS', '/register': 'Create your hospital', '/login': 'Sign in', '/install': 'Install' };
 
 function ScrollAndTitle() {
     const { pathname, hash } = useLocation();
@@ -42,7 +42,7 @@ function ScrollAndTitle() {
         if (!hash) window.scrollTo(0, 0);
         const last = pathname.split('/').filter(Boolean).pop();
         const section = { patients: 'Patients', appointments: 'Appointments', inpatients: 'Inpatients', pharmacy: 'Pharmacy', lab: 'Lab & imaging', staff: 'Staff', people: 'People', login: 'Sign in', payments: 'Payments', settings: 'Settings', profile: 'Profile', platform: 'Owner console', billing: 'Billing', insurance: 'Insurance', subscription: 'Plan', hospitals: 'Hospitals', subscriptions: 'Plan payments', users: 'Users', activity: 'Activity', health: 'System health' }[last];
-        document.title = TITLES[pathname] ?? (section ? `${section} · Fera HealthSphere` : 'Fera HealthSphere');
+        document.title = TITLES[pathname] ?? (section ? `${section} · Fera HospitalOS` : 'Fera HospitalOS');
     }, [pathname, hash]);
     return null;
 }

@@ -23,18 +23,20 @@ class User extends Authenticatable
     public const ROLE_PHARMACIST = 'pharmacist';
     public const ROLE_LAB = 'lab_technician';
     public const ROLE_ACCOUNTANT = 'accountant';
+    public const ROLE_STOREKEEPER = 'storekeeper';
+    public const ROLE_HR = 'hr_manager';
     public const ROLE_PATIENT = 'patient';
 
     /** Roles a hospital admin is allowed to assign. */
     public const TENANT_ROLES = [
         self::ROLE_ADMIN, self::ROLE_DOCTOR, self::ROLE_NURSE, self::ROLE_RECEPTIONIST,
-        self::ROLE_PHARMACIST, self::ROLE_LAB, self::ROLE_ACCOUNTANT, self::ROLE_PATIENT,
+        self::ROLE_PHARMACIST, self::ROLE_LAB, self::ROLE_ACCOUNTANT, self::ROLE_STOREKEEPER, self::ROLE_HR, self::ROLE_PATIENT,
     ];
 
     /** Everyone who works at the hospital (counts toward the plan's staff limit). */
     public const STAFF_ROLES = [
         self::ROLE_ADMIN, self::ROLE_DOCTOR, self::ROLE_NURSE, self::ROLE_RECEPTIONIST,
-        self::ROLE_PHARMACIST, self::ROLE_LAB, self::ROLE_ACCOUNTANT,
+        self::ROLE_PHARMACIST, self::ROLE_LAB, self::ROLE_ACCOUNTANT, self::ROLE_STOREKEEPER, self::ROLE_HR,
     ];
 
     // tenant_id and role are set explicitly in code, never mass-assigned from requests.

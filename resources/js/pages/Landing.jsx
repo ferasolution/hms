@@ -45,7 +45,7 @@ const ROLES = [
 ];
 
 const FAQ = [
-    ['Do we need to install anything?', 'No. Fera HealthSphere runs in any browser on a computer, tablet or phone, and can be added to the home screen like an app. Your hospital gets its own sign-in page for staff and patients.'],
+    ['Do we need to install anything?', 'No. Fera HospitalOS runs in any browser on a computer, tablet or phone, and can be added to the home screen like an app. Your hospital gets its own sign-in page for staff and patients.'],
     ['Is each hospital’s data kept separate?', 'Yes. Every record belongs to exactly one hospital and every request is checked against it, so one hospital can never see another’s patients. Every chart opening is logged.'],
     ['Who can see what?', 'Access follows the job: doctors, nurses, front desk, pharmacy, lab and accounts each see what they need. Patients only ever see their own records.'],
     ['Does it handle insurance?', 'Yes. Record each patient’s policy, request pre-authorization, claim bills with the insurer’s share worked out for you, and track every claim until it is paid.'],

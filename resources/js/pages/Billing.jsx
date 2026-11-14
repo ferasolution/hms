@@ -32,7 +32,7 @@ export default function Billing() {
 
     return (
         <div>
-            <PageHeader title="Plan & billing" description="Your Fera HealthSphere plan, what you’re using, and upgrades." />
+            <PageHeader title="Plan & billing" description="Your Fera HospitalOS plan, what you’re using, and upgrades." />
 
             {pending && (
                 <div className="mt-6 flex items-start gap-3 rounded-xl bg-amber-50 px-4 py-3 text-amber-900 ring-1 ring-amber-600/20">
@@ -157,7 +157,7 @@ function PayDialog({ plan, payTo, tenant, onClose, onDone }) {
     }
 
     return (
-        <Modal open onClose={onClose} title={`Upgrade to ${plan.name}`} description="Pay Fera HealthSphere directly, then send us the transaction ID or receipt number."
+        <Modal open onClose={onClose} title={`Upgrade to ${plan.name}`} description="Pay Fera HospitalOS directly, then send us the transaction ID or receipt number."
             footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} onClick={submit} disabled={!available.length}>Send payment details</Button></>}>
             {!available.length ? (
                 <p className="text-graphite">Payment details aren’t set up yet. Please contact Fera Solution to upgrade.</p>

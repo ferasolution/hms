@@ -8,8 +8,8 @@
     <link rel="icon" type="image/png" href="/icon-192.png">
     <link rel="apple-touch-icon" href="/icon-192.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="HealthSphere">
-    <title>Fera HealthSphere</title>
+    <meta name="apple-mobile-web-app-title" content="HospitalOS">
+    <title>Fera HospitalOS</title>
     @viteReactRefresh
     @vite(['resources/css/app.css', 'resources/js/app.jsx'])
 </head>

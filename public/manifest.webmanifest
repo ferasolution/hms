@@ -1,6 +1,6 @@
 {
-  "name": "Fera HealthSphere",
-  "short_name": "HealthSphere",
+  "name": "Fera HospitalOS",
+  "short_name": "HospitalOS",
   "description": "Hospital management: patients, appointments, wards, pharmacy, lab and billing.",
   "start_url": "/",
   "display": "standalone",

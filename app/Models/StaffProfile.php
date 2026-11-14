@@ -17,7 +17,7 @@ class StaffProfile extends Model
 
     protected function casts(): array
     {
-        return ['schedule' => 'array', 'consultation_fee' => 'decimal:2', 'slot_minutes' => 'integer'];
+        return ['schedule' => 'array', 'joined_on' => 'date:Y-m-d', 'annual_leave_days' => 'integer', 'consultation_fee' => 'decimal:2', 'slot_minutes' => 'integer'];
     }
 
     public function user(): BelongsTo { return $this->belongsTo(User::class); }

@@ -20,7 +20,7 @@ use Illuminate\Validation\Rule;
  */
 class CommunityController extends Controller
 {
-    public const MODULES = ['appointments', 'opd', 'ipd', 'pharmacy', 'lab', 'billing', 'insurance', 'roster', 'portal'];
+    public const MODULES = ['appointments', 'opd', 'emergency', 'ipd', 'nursing', 'pharmacy', 'lab', 'billing', 'insurance', 'inventory', 'hr', 'finance', 'reports', 'roster', 'portal'];
 
     public function __construct(protected Notifier $notifier, protected TenantManager $tenants) {}
 

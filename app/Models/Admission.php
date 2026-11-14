@@ -27,4 +27,6 @@ class Admission extends Model
     public function bed(): BelongsTo { return $this->belongsTo(Bed::class); }
     public function doctor(): BelongsTo { return $this->belongsTo(User::class, 'doctor_id'); }
     public function encounters(): HasMany { return $this->hasMany(Encounter::class); }
+    public function medicationOrders(): HasMany { return $this->hasMany(MedicationOrder::class); }
+    public function nursingNotes(): HasMany { return $this->hasMany(NursingNote::class); }
 }

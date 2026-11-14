@@ -1,4 +1,4 @@
-# Fera HealthSphere — Hospital Management SaaS
+# Fera HospitalOS — Hospital ERP, HIS & EHR (SaaS)
 
 Multi-tenant Hospital Management System for hospitals, clinics and diagnostic centres.
 Laravel 13 API + React SPA, deployed to `hms.ferasolution.com`. Set up the same way as

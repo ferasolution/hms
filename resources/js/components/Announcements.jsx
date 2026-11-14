@@ -44,7 +44,7 @@ export default function Announcements({ tenant, courseId, canPost, title = 'Anno
                                     <div className="flex flex-wrap items-center gap-2">
                                         <p className="font-bold text-ink-deep">{a.title}</p>
                                         {a.pinned && <Badge tone="danger">Pinned</Badge>}
-                                        {a.platform && <Badge tone="draft">From Fera HealthSphere</Badge>}
+                                        {a.platform && <Badge tone="draft">From Fera HospitalOS</Badge>}
                                                                             </div>
                                     <p className={`mt-1 whitespace-pre-line text-graphite ${compact ? 'line-clamp-3' : ''}`}>{a.body}</p>
                                     <p className="mt-1.5 text-xs text-pencil">

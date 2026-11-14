@@ -28,9 +28,9 @@ export function PlatformLogin() {
     }
 
     return (
-        <AuthShell aside={<AsideList title="Platform console" items={['Every hospital on Fera HealthSphere', 'Trials, plans and suspensions', 'Growth at a glance']} />}>
+        <AuthShell aside={<AsideList title="Platform console" items={['Every hospital on Fera HospitalOS', 'Trials, plans and suspensions', 'Growth at a glance']} />}>
             <h1 className="text-3xl font-extrabold">Owner sign in</h1>
-            <p className="mt-2 text-pencil">For the people who run Fera HealthSphere itself.</p>
+            <p className="mt-2 text-pencil">For the people who run Fera HospitalOS itself.</p>
             <form onSubmit={submit} className="mt-8 space-y-5" noValidate>
                 <Field label="Email" name="email" type="email" error={error} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} autoComplete="email" autoFocus />
                 <Field label="Password" name="password" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} autoComplete="current-password" />

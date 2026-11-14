@@ -9,6 +9,12 @@ use App\Http\Controllers\Api\Hospital\CommunityController;
 use App\Http\Controllers\Api\Hospital\DashboardController;
 use App\Http\Controllers\Api\Hospital\EncounterController;
 use App\Http\Controllers\Api\Hospital\EhrController;
+use App\Http\Controllers\Api\Hospital\EmergencyController;
+use App\Http\Controllers\Api\Hospital\FinanceController;
+use App\Http\Controllers\Api\Hospital\HrController;
+use App\Http\Controllers\Api\Hospital\NursingController;
+use App\Http\Controllers\Api\Hospital\ReportsController;
+use App\Http\Controllers\Api\Hospital\StoreController;
 use App\Http\Controllers\Api\Hospital\InpatientController;
 use App\Http\Controllers\Api\Hospital\InsuranceController;
 use App\Http\Controllers\Api\Hospital\InvoiceController;
@@ -117,7 +123,7 @@ Route::middleware('tenant')->group(function () {
         });
 
         // Everyone who works at the hospital
-        Route::middleware('role:admin,doctor,nurse,receptionist,pharmacist,lab_technician,accountant')->group(function () {
+        Route::middleware('role:admin,doctor,nurse,receptionist,pharmacist,lab_technician,accountant,storekeeper,hr_manager')->group(function () {
             Route::get('patients', [PatientController::class, 'index']);
             Route::get('patients/{patient}', [PatientController::class, 'show']);
             Route::get('staff', [StaffController::class, 'staff']);
@@ -154,7 +160,7 @@ Route::middleware('tenant')->group(function () {
         });
 
         // Health record (EHR). Writes are checked per section in EhrController.
-        Route::middleware('role:admin,doctor,nurse,receptionist,pharmacist,lab_technician,accountant')->group(function () {
+        Route::middleware('role:admin,doctor,nurse,receptionist,pharmacist,lab_technician,accountant,storekeeper,hr_manager')->group(function () {
             Route::get('patients/{patient}/ehr', [EhrController::class, 'show']);
             Route::post('patients/{patient}/ehr/{type}', [EhrController::class, 'store'])->whereIn('type', ['problems', 'allergies', 'medications', 'immunizations', 'documents']);
             Route::patch('ehr/{type}/{id}', [EhrController::class, 'update'])->whereIn('type', ['problems', 'allergies', 'medications', 'immunizations', 'documents'])->whereNumber('id');
@@ -187,6 +193,89 @@ Route::middleware('tenant')->group(function () {
                 Route::get('exports/claims.csv', [InsuranceController::class, 'exportClaims']);
             });
         });
+
+        // Emergency department and ambulance (blueprint §5)
+        Route::middleware(['role:admin,doctor,nurse,receptionist', 'module:emergency'])->prefix('emergency')->group(function () {
+            Route::get('board', [EmergencyController::class, 'board']);
+            Route::get('history', [EmergencyController::class, 'history']);
+            Route::post('visits', [EmergencyController::class, 'store']);
+            Route::post('visits/{visit}/triage', [EmergencyController::class, 'triage'])->middleware('role:admin,doctor,nurse');
+            Route::patch('visits/{visit}', [EmergencyController::class, 'update']);
+            Route::post('visits/{visit}/dispose', [EmergencyController::class, 'dispose'])->middleware('role:admin,doctor');
+            Route::get('ambulances', [EmergencyController::class, 'ambulances']);
+            Route::post('ambulances', [EmergencyController::class, 'storeAmbulance'])->middleware('role:admin');
+            Route::patch('ambulances/{ambulance}', [EmergencyController::class, 'updateAmbulance']);
+            Route::post('trips', [EmergencyController::class, 'storeTrip']);
+            Route::patch('trips/{trip}', [EmergencyController::class, 'updateTrip']);
+        });
+
+        // Ward nursing: eMAR, notes, fluid balance (blueprint §6.2)
+        Route::middleware(['role:admin,doctor,nurse', 'module:nursing'])->group(function () {
+            Route::get('nursing/due', [NursingController::class, 'due']);
+            Route::get('admissions/{admission}/nursing', [NursingController::class, 'show']);
+            Route::post('admissions/{admission}/medication-orders', [NursingController::class, 'storeOrder'])->middleware('role:admin,doctor');
+            Route::post('medication-orders/{order}/stop', [NursingController::class, 'stopOrder'])->middleware('role:admin,doctor');
+            Route::post('medication-orders/{order}/administer', [NursingController::class, 'administer']);
+            Route::post('admissions/{admission}/nursing-notes', [NursingController::class, 'storeNote']);
+            Route::post('admissions/{admission}/fluids', [NursingController::class, 'storeFluid']);
+        });
+
+        // Service price list (everyone on staff can see it; admin/accounts change it)
+        Route::middleware('role:admin,doctor,nurse,receptionist,pharmacist,lab_technician,accountant,storekeeper,hr_manager')->get('services', [StoreController::class, 'services']);
+        Route::middleware('role:admin,accountant')->group(function () {
+            Route::post('services', [StoreController::class, 'storeService']);
+            Route::patch('services/{service}', [StoreController::class, 'updateService']);
+        });
+        Route::post('patients/{patient}/charges', [InvoiceController::class, 'chargeService'])->middleware(['role:admin,receptionist,accountant,doctor,nurse', 'module:billing']);
+
+        // Store & procurement (blueprint §8.3, §17.2). Orders need a second person to approve.
+        Route::middleware(['role:admin,storekeeper,pharmacist,accountant', 'module:inventory'])->prefix('store')->group(function () {
+            Route::get('suppliers', [StoreController::class, 'suppliers']);
+            Route::get('items', [StoreController::class, 'items']);
+            Route::get('items/{item}/movements', [StoreController::class, 'movements']);
+            Route::get('orders', [StoreController::class, 'orders']);
+            Route::get('exports/items.csv', [StoreController::class, 'exportItems']);
+            Route::middleware('role:admin,storekeeper,pharmacist')->group(function () {
+                Route::post('suppliers', [StoreController::class, 'storeSupplier']);
+                Route::patch('suppliers/{supplier}', [StoreController::class, 'updateSupplier']);
+                Route::post('items', [StoreController::class, 'storeItem']);
+                Route::patch('items/{item}', [StoreController::class, 'updateItem']);
+                Route::post('items/{item}/move', [StoreController::class, 'moveItem']);
+                Route::post('orders', [StoreController::class, 'storeOrder']);
+                Route::post('orders/{order}/receive', [StoreController::class, 'receiveOrder']);
+            });
+            Route::middleware('role:admin,accountant')->group(function () {
+                Route::post('orders/{order}/approve', [StoreController::class, 'approveOrder']);
+                Route::post('orders/{order}/cancel', [StoreController::class, 'cancelOrder']);
+            });
+        });
+
+        // HR: everyone requests leave and clocks in; HR/admin decide (blueprint §19)
+        Route::middleware(['role:admin,doctor,nurse,receptionist,pharmacist,lab_technician,accountant,storekeeper,hr_manager', 'module:hr'])->prefix('hr')->group(function () {
+            Route::get('leave', [HrController::class, 'leave']);
+            Route::post('leave', [HrController::class, 'requestLeave']);
+            Route::patch('leave/{leave}', [HrController::class, 'decideLeave']);
+            Route::get('attendance/me', [HrController::class, 'me']);
+            Route::post('attendance/clock', [HrController::class, 'clock']);
+            Route::middleware('role:admin,hr_manager')->group(function () {
+                Route::get('attendance', [HrController::class, 'board']);
+                Route::get('exports/attendance.csv', [HrController::class, 'export']);
+                Route::patch('staff/{user}/employment', [HrController::class, 'updateEmployment']);
+            });
+        });
+
+        // Finance (blueprint §17)
+        Route::middleware(['role:admin,accountant', 'module:finance'])->prefix('finance')->group(function () {
+            Route::get('expenses', [FinanceController::class, 'expenses']);
+            Route::post('expenses', [FinanceController::class, 'storeExpense']);
+            Route::patch('expenses/{expense}', [FinanceController::class, 'updateExpense']);
+            Route::get('summary', [FinanceController::class, 'summary']);
+            Route::get('exports/expenses.csv', [FinanceController::class, 'export']);
+        });
+
+        // Reports (blueprint §27)
+        Route::get('reports/{section?}', ReportsController::class)->middleware(['role:admin,accountant', 'module:reports'])
+            ->whereIn('section', ['overview', 'opd', 'inpatients', 'emergency', 'lab', 'pharmacy', 'revenue', 'diagnoses']);
 
         // Doctors and nurses: clinical notes
         Route::middleware(['role:admin,doctor,nurse', 'module:opd'])->group(function () {

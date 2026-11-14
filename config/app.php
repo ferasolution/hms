@@ -13,7 +13,7 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'Fera HealthSphere'),
+    'name' => env('APP_NAME', 'Fera HospitalOS'),
 
     /*
     |--------------------------------------------------------------------------
