@@ -11,7 +11,9 @@ const ROLES = [
     { value: 'receptionist', label: 'Front desk', plural: 'Front desk', hint: 'Registers patients, books visits, takes payments.' },
     { value: 'pharmacist', label: 'Pharmacist', plural: 'Pharmacy', hint: 'Dispenses prescriptions and manages stock.' },
     { value: 'lab_technician', label: 'Lab technician', plural: 'Lab', hint: 'Collects samples and enters results.' },
-    { value: 'accountant', label: 'Accounts', plural: 'Accounts', hint: 'Bills, payments and insurance claims.' },
+    { value: 'accountant', label: 'Accounts', plural: 'Accounts', hint: 'Bills, payments, expenses, insurance claims and reports.' },
+    { value: 'storekeeper', label: 'Store keeper', plural: 'Store', hint: 'Store stock, suppliers, purchase orders and goods received.' },
+    { value: 'hr_manager', label: 'HR manager', plural: 'HR', hint: 'Approves leave and tracks attendance.' },
     { value: 'admin', label: 'Admin', plural: 'Admins', hint: 'Full control of this hospital.' },
     { value: 'patient', label: 'Patient', plural: 'Patients', hint: 'Portal access only. Usually created from the patient’s chart.' },
 ];

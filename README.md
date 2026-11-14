@@ -11,11 +11,17 @@ Fera EduSphere (LMS) and the CMS portal.
 | Patients (EMR) | Registration with automatic MRN, allergies, conditions, insurance, emergency contact, full chart |
 | Appointments | Doctor schedules and free slots, walk-ins with tokens, check-in, waiting room, video visits |
 | Consultations (OPD) | Vitals, complaints, examination, diagnosis + ICD-10, plan, follow-up; prescription and test orders in the same note |
+| Emergency & ambulance | Live triage board (5-level acuity), unknown-patient registration, doctor/bay assignment, dispositions incl. admit-to-bed, ambulance fleet and call dispatch |
 | Inpatients (IPD) | Wards and beds, live bed board, admit / transfer / discharge with summary, automatic room charges |
+| Ward nursing · eMAR | Medication orders with allergy check, dose schedule, given / held / refused / missed recording, medication round, nursing notes with risk assessments, fluid balance |
 | Pharmacy | Medicine stock with batch and expiry, stock movements, prescription queue, dispensing against stock |
 | Lab & imaging | Test catalogue and prices, orders by priority, sample collection, results with flags and attachments |
 | Billing | Bills fill themselves (consultation, lab, pharmacy, room), manual charges, payments, receipts, discounts, void |
 | Insurance | Claims per bill: submitted → approved / rejected → paid (records the payment) |
+| Store & purchasing | Consumables and equipment stock, issue to departments, suppliers, purchase orders with two-person approval, goods received updates stock and books an expense |
+| HR | Leave requests and balances (no self-approval), daily clock in / out with late marking, attendance board and CSV export |
+| Finance | Expenses with approve-then-pay (two people), year profit & loss, service price list billed to patients |
+| Reports | Overview, OPD, inpatient census and length of stay, emergency, lab turnaround, pharmacy, revenue, top diagnoses — all as CSV |
 | Staff & roster | Departments, doctor profiles and clinic hours, weekly duty roster |
 | Patient portal | Patients see visits, prescriptions, results and bills, and book free slots online |
 | Owner console | Every hospital, plans and plan payments, users, password resets, support sign-in, activity, system health |
@@ -25,7 +31,7 @@ Each module except Patients can be switched off per hospital (Settings → Modul
 ## Roles
 
 `super_admin` (platform owner, no tenant) · `admin` · `doctor` · `nurse` · `receptionist` ·
-`pharmacist` · `lab_technician` · `accountant` · `patient`
+`pharmacist` · `lab_technician` · `accountant` · `storekeeper` · `hr_manager` · `patient`
 
 ## How tenancy works
 

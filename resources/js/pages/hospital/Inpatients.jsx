@@ -99,6 +99,7 @@ export default function Inpatients() {
                                 </Link>
                                 {a.diagnosis && <span className="text-sm text-pencil">{a.diagnosis}</span>}
                                 {a.status === 'admitted' ? <>
+                                    {me.user.role !== 'receptionist' && <Button size="sm" variant="ghost" as={Link} to={`/${tenant}/nursing?a=${a.id}`}>eMAR</Button>}
                                     <Button size="sm" variant="secondary" onClick={() => setTransferring(a)}>Transfer</Button>
                                     <Button size="sm" onClick={() => setDischarging(a)}>Discharge</Button>
                                 </> : <Badge>{a.discharge_type ?? 'Discharged'}</Badge>}
@@ -116,7 +117,7 @@ export default function Inpatients() {
     );
 }
 
-function useFreeBeds(tenant) {
+export function useFreeBeds(tenant) {
     const [beds, setBeds] = useState(null);
     useEffect(() => {
         api('ipd/board', { tenant }).then((b) => setBeds(b.wards.flatMap((w) => w.beds.filter((x) => x.status === 'available').map((x) => ({ ...x, ward: w })))));

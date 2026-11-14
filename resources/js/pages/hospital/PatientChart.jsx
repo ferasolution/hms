@@ -24,6 +24,7 @@ export default function PatientChart() {
     const [booking, setBooking] = useState(false);
     const [admitting, setAdmitting] = useState(false);
     const [portal, setPortal] = useState(false);
+    const [charging, setCharging] = useState(false);
     const doctors = useDoctors(tenant);
     const role = me.user.role;
     const clinician = ['admin', 'doctor', 'nurse'].includes(role);
@@ -99,8 +100,10 @@ export default function PatientChart() {
                                 <div className="flex flex-wrap items-center gap-2"><p className="flex-1 font-bold text-graphite">{date(a.admitted_at)} → {a.discharged_at ? date(a.discharged_at) : 'now'}</p><Badge tone={a.status === 'admitted' ? 'published' : 'neutral'}>{a.status === 'admitted' ? 'In hospital' : `Discharged${a.discharge_type ? ` · ${a.discharge_type}` : ''}`}</Badge></div>
                                 <p className="text-sm text-pencil">{a.bed?.ward?.name} · bed {a.bed?.number}{a.doctor ? ` · ${a.doctor.name}` : ''}{a.diagnosis ? ` · ${a.diagnosis}` : ''}</p>
                                 {a.discharge_summary && <p className="mt-2 whitespace-pre-line text-sm text-graphite">{a.discharge_summary}</p>}
+                                {a.status === 'admitted' && clinician && <Link to={`/${tenant}/nursing?a=${a.id}`} className="mt-2 inline-block text-sm font-bold text-ink hover:underline">Open ward chart · eMAR →</Link>}
                             </div>
                         )} />}
+                        {tab === 'bills' && <div className="mb-3 flex justify-end"><Button size="sm" variant="secondary" icon="plus" onClick={() => setCharging(true)}>Add charge</Button></div>}
                         {tab === 'bills' && <Rows empty="No bills yet." rows={d.invoices} render={(i) => (
                             <><Link to={`/${tenant}/billing/${i.id}`} className="min-w-0 flex-1 font-bold text-ink hover:underline">{i.number}<span className="block text-sm font-normal text-pencil">{date(i.created_at)}</span></Link>
                                 <span className="tabular-nums">{money(i.total, i.currency)}</span><Badge tone={INVOICE_STATUS[i.status][1]}>{INVOICE_STATUS[i.status][0]}</Badge></>
@@ -136,6 +139,7 @@ export default function PatientChart() {
                 onDone={() => { setNoting(null); if (params.get('note')) setParams({}, { replace: true }); toast('Note saved'); setTab('visits'); load(); }} />}
             {booking && <BookDialog tenant={tenant} doctors={doctors} initial={{ patient: p }} defaultDoctor={role === 'doctor' ? me.user.id : null} onClose={() => setBooking(false)} onDone={() => { setBooking(false); toast('Booked'); load(); }} />}
             {admitting && <AdmitDialog tenant={tenant} doctors={doctors} patient={p} onClose={() => setAdmitting(false)} onDone={() => { setAdmitting(false); toast('Admitted'); load(); }} />}
+            {charging && <ChargeDialog tenant={tenant} patient={p} currency={me.tenant.settings?.currency ?? 'USD'} onClose={() => setCharging(false)} onDone={() => { setCharging(false); toast('Added to the bill'); load(); }} />}
             {portal && <PortalDialog tenant={tenant} patient={p} onClose={() => setPortal(false)} onDone={() => { setPortal(false); toast('Portal account created'); load(); }} />}
         </div>
     );
@@ -348,6 +352,32 @@ function PortalDialog({ tenant, patient, onClose, onDone }) {
             <div className="space-y-4">
                 <Field label="Email" name="email" type="email" error={error} value={email} onChange={(e) => setEmail(e.target.value)} />
                 <Field label="Temporary password" name="password" error={error} value={password} onChange={(e) => setPassword(e.target.value)} hint="They can change it after signing in." />
+            </div>
+        </Modal>
+    );
+}
+
+function ChargeDialog({ tenant, patient, currency, onClose, onDone }) {
+    const [services, setServices] = useState(null);
+    const [serviceId, setServiceId] = useState('');
+    const [qty, setQty] = useState(1);
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState(null);
+    useEffect(() => { api('services', { tenant }).then((r) => setServices(r.data)).catch(() => setServices([])); }, [tenant]);
+    const svc = (services ?? []).find((x) => String(x.id) === serviceId);
+    async function save() {
+        setBusy(true); setError(null);
+        try { await api(`patients/${patient.id}/charges`, { method: 'POST', tenant, body: { service_id: Number(serviceId), quantity: Number(qty) } }); onDone(); } catch (e) { setError(e); } finally { setBusy(false); }
+    }
+    return (
+        <Modal open onClose={onClose} title="Add a charge" description="From the hospital's service price list. Goes on the patient's open bill."
+            footer={<>{svc && <span className="mr-auto font-bold text-ink-deep">{money(svc.price * qty, currency)}</span>}<Button variant="secondary" onClick={onClose}>Cancel</Button><Button busy={busy} disabled={!serviceId} onClick={save}>Add</Button></>}>
+            <div className="grid gap-3 sm:grid-cols-[1fr_6rem]">
+                <Field label="Service" name="service_id" as="select" error={error} value={serviceId} onChange={(e) => setServiceId(e.target.value)}>
+                    <option value="">{services === null ? 'Loading…' : services.length ? 'Choose…' : 'No services set up yet'}</option>
+                    {(services ?? []).map((x) => <option key={x.id} value={x.id}>{x.name} · {money(x.price, currency)}</option>)}
+                </Field>
+                <Field label="Qty" name="quantity" type="number" min={1} error={error} value={qty} onChange={(e) => setQty(e.target.value)} />
             </div>
         </Modal>
     );

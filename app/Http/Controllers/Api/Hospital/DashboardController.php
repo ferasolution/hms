@@ -69,6 +69,12 @@ class DashboardController extends Controller
             'low_stock' => Medicine::where('is_active', true)->whereColumn('stock', '<=', 'reorder_level')->count(),
         ];
 
+        $out['emergency'] = [
+            'in_department' => \App\Models\ErVisit::where('status', '!=', 'disposed')->count(),
+            'critical' => \App\Models\ErVisit::where('status', '!=', 'disposed')->whereIn('triage_level', [1, 2])->count(),
+        ];
+        $out['store'] = ['low_stock' => \App\Models\InventoryItem::where('is_active', true)->whereColumn('stock', '<=', 'reorder_level')->count()];
+
         if ($user->hasRole(User::ROLE_ADMIN, User::ROLE_ACCOUNTANT, User::ROLE_RECEPTIONIST)) {
             $out['finance'] = [
                 'collected_today' => round((float) InvoicePayment::whereDate('paid_at', today())->sum('amount'), 2),

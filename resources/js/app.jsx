@@ -19,6 +19,12 @@ import Lab from './pages/hospital/Lab';
 import Invoices, { InvoiceDetail } from './pages/hospital/Invoices';
 import Staff from './pages/hospital/Staff';
 import Insurance from './pages/hospital/Insurance';
+import Emergency from './pages/hospital/Emergency';
+import Nursing from './pages/hospital/Nursing';
+import Store from './pages/hospital/Store';
+import Hr from './pages/hospital/Hr';
+import Finance from './pages/hospital/Finance';
+import Reports from './pages/hospital/Reports';
 import Settings from './pages/Settings';
 import Profile from './pages/Profile';
 import { PlatformLogin } from './pages/Platform';
@@ -85,6 +91,12 @@ function App() {
                         <Route path="billing/:id" element={<InvoiceDetail />} />
                         <Route path="staff" element={<Staff />} />
                         <Route path="insurance" element={<Insurance />} />
+                        <Route path="emergency" element={<Emergency />} />
+                        <Route path="nursing" element={<Nursing />} />
+                        <Route path="store" element={<Store />} />
+                        <Route path="hr" element={<Hr />} />
+                        <Route path="finance" element={<Finance />} />
+                        <Route path="reports" element={<Reports />} />
                         <Route path="my-health" element={<Navigate to=".." relative="path" replace />} />
                         <Route path="people" element={<People />} />
                         <Route path="settings" element={<Settings />} />

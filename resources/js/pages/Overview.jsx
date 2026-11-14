@@ -47,12 +47,15 @@ export default function Overview() {
 
     const tiles = [
         on('appointments') && { icon: 'calendar', label: role === 'doctor' ? 'My patients today' : 'Appointments today', value: s?.appointments_today?.total, sub: s ? `${s.appointments_today?.waiting ?? 0} waiting · ${s.appointments_today?.completed ?? 0} seen` : null, to: `/${tenant}/appointments` },
+        on('emergency') && ['admin', 'doctor', 'nurse', 'receptionist'].includes(role) && { icon: 'ambulance', label: 'In Emergency', value: s?.emergency?.in_department, sub: s ? (s.emergency?.critical ? `${s.emergency.critical} critical` : 'None critical') : null, to: `/${tenant}/emergency` },
         on('ipd') && { icon: 'bed', label: role === 'doctor' ? 'My inpatients' : 'Beds occupied', value: s ? (role === 'doctor' ? s.inpatients : `${s.beds?.occupied ?? 0}/${s.beds?.total ?? 0}`) : undefined, sub: s ? `${s.beds?.available ?? 0} free` : null, to: `/${tenant}/inpatients` },
         on('lab') && ['admin', 'doctor', 'lab_technician'].includes(role) && { icon: 'flask', label: 'Lab pending', value: s?.lab?.pending, sub: s?.lab?.urgent ? `${s.lab.urgent} urgent` : 'None urgent', to: `/${tenant}/lab` },
         on('pharmacy') && ['admin', 'pharmacist'].includes(role) && { icon: 'pill', label: 'To dispense', value: s?.pharmacy?.pending, sub: s ? `${s.pharmacy?.low_stock ?? 0} low on stock` : null, to: `/${tenant}/pharmacy` },
         s?.finance && on('billing') && { icon: 'wallet', label: 'Collected today', value: money(s.finance.collected_today, cur), sub: `${money(s.finance.collected_month, cur)} this month`, to: `/${tenant}/billing` },
         s?.finance && on('billing') && role !== 'receptionist' && { icon: 'receipt', label: 'Outstanding', value: money(s.finance.outstanding, cur), sub: 'Unpaid bills', to: `/${tenant}/billing` },
-        !['pharmacist', 'lab_technician', 'accountant'].includes(role) && { icon: 'users', label: 'Patients', value: s?.patients?.total, sub: s ? `${s.patients?.new_today ?? 0} new today` : null, to: `/${tenant}/patients` },
+        on('inventory') && role === 'storekeeper' && { icon: 'box', label: 'Store items to reorder', value: s?.store?.low_stock, to: `/${tenant}/store` },
+        role === 'hr_manager' && { icon: 'briefcase', label: 'Leave & attendance', value: 'Open', to: `/${tenant}/hr` },
+        !['pharmacist', 'lab_technician', 'accountant', 'storekeeper', 'hr_manager'].includes(role) && { icon: 'users', label: 'Patients', value: s?.patients?.total, sub: s ? `${s.patients?.new_today ?? 0} new today` : null, to: `/${tenant}/patients` },
     ].filter(Boolean).slice(0, 4);
 
     const max = Math.max(1, ...(s?.visits_series ?? []).map((v) => v.count));
