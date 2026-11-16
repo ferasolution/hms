@@ -4,11 +4,13 @@ namespace App\Services;
 
 use App\Models\Admission;
 use App\Models\Department;
+use App\Models\InventoryItem;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\LabTest;
 use App\Models\Medicine;
 use App\Models\Patient;
+use App\Models\Service;
 use App\Models\Tenant;
 use App\Models\Ward;
 use App\Tenancy\TenantManager;
@@ -188,6 +190,34 @@ class Hospital
                     'generic_name' => $generic, 'form' => $form, 'category' => $cat, 'unit_price' => $price,
                     'stock' => 0, 'reorder_level' => 50,
                 ]);
+            }
+
+            // Service price list: the ER registration fee and common bedside procedures.
+            foreach ([
+                ['Emergency registration & assessment', 'ER-01', 'emergency', 150],
+                ['Wound dressing', 'PRC-01', 'nursing', 25],
+                ['Suturing (simple)', 'PRC-02', 'procedure', 90],
+                ['IV cannulation', 'NUR-01', 'nursing', 20],
+                ['Nebulization', 'NUR-02', 'nursing', 15],
+                ['Injection (IM / IV)', 'NUR-03', 'nursing', 10],
+                ['Urinary catheterization', 'NUR-04', 'nursing', 35],
+                ['Plaster cast', 'PRC-03', 'procedure', 120],
+            ] as [$name, $code, $cat, $price]) {
+                Service::firstOrCreate(['code' => $code], ['name' => $name, 'category' => $cat, 'price' => $price]);
+            }
+
+            // Main store starter list (stock starts at zero until the first delivery).
+            foreach ([
+                ['Nitrile gloves (M)', 'GLV-M', 'consumable', 'box', 20, 6.40],
+                ['Syringe 5 ml', 'SYR-5', 'consumable', 'pcs', 500, 0.12],
+                ['IV cannula 20G', 'CAN-20', 'consumable', 'pcs', 200, 0.65],
+                ['Gauze swabs 10×10', 'GAU-10', 'surgical', 'pack', 50, 1.80],
+                ['Surgical masks', 'MSK-S', 'consumable', 'box', 30, 4.50],
+                ['Patient gown', 'LIN-GWN', 'linen', 'pcs', 60, 9.00],
+                ['Bed sheet', 'LIN-SHT', 'linen', 'pcs', 80, 7.50],
+                ['Hand sanitizer 500 ml', 'HSK-SAN', 'housekeeping', 'bottle', 40, 3.20],
+            ] as [$name, $code, $cat, $unit, $reorder, $cost]) {
+                InventoryItem::firstOrCreate(['code' => $code], ['name' => $name, 'category' => $cat, 'unit' => $unit, 'reorder_level' => $reorder, 'unit_cost' => $cost]);
             }
         });
     }

@@ -1,11 +1,11 @@
 {
   "name": "Fera HospitalOS",
   "short_name": "HospitalOS",
-  "description": "Hospital management: patients, appointments, wards, pharmacy, lab and billing.",
+  "description": "Hospital operating system: EHR, emergency, wards & eMAR, lab, pharmacy, billing, insurance, store, HR, finance and reports.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#F6F8FC",
-  "theme_color": "#172E56",
+  "theme_color": "#04161c",
   "icons": [
     { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
     { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
