@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion, useInView, useMotionValueEvent, useReducedMotion, useScroll, useSpring, useTransform } from 'motion/react';
-import { api } from '../lib/api';
+import { api, session } from '../lib/api';
 import Icon from '../components/Icon';
 import { Logo } from '../components/ui';
 import { CountUp, EASE, MaskedLines, Reveal } from '../components/landing/Reveal';
@@ -29,12 +29,12 @@ const SUITES = [
     {
         key: 'clinical', label: 'Clinical care', icon: 'stethoscope', grad: 'from-teal-400 to-cyan-500', url: 'patients/ava-brooks',
         title: 'One chart that follows the patient everywhere.',
-        text: 'Problems, allergies, medicines, vaccinations, history, documents and vitals — the doctor sees everything in one place and writes one note.',
+        text: 'Problems, allergies, medicines, vaccinations, history, documents and vitals. The doctor sees everything in one place and writes one note.',
         points: ['EHR with problem list & allergies', 'Appointments, walk-in tokens & waiting room', 'One OPD note: vitals, ICD-10, Rx and tests', 'Patient portal for results & bookings'],
     },
     {
         key: 'acute', label: 'Emergency & wards', icon: 'ambulance', grad: 'from-rose-400 to-orange-500', url: 'emergency',
-        title: 'Triage, treat and admit — without losing a minute.',
+        title: 'Triage, treat and admit without losing a minute.',
         text: 'A live 5-level triage board with waiting timers, critical alerts to doctors, admit straight to a free bed, and a medication chart nurses actually use.',
         points: ['Live triage board & ambulance dispatch', 'Unknown-patient registration', 'Bed board, transfers & discharge', 'eMAR with allergy check & dose recording'],
     },
@@ -52,14 +52,14 @@ const SUITES = [
     },
     {
         key: 'ops', label: 'Operations & people', icon: 'box', grad: 'from-sky-400 to-indigo-500', url: 'store',
-        title: 'Stock, suppliers and staff — under control.',
+        title: 'Stock, suppliers and staff, under control.',
         text: 'Purchase orders need a second approver, goods received update stock by themselves, and staff clock in, request leave and see their roster.',
         points: ['Store stock & department issues', 'Suppliers & purchase orders', 'Leave balances & attendance', 'Duty roster & departments'],
     },
 ];
 
 const JOURNEY = [
-    ['Arrival', 'Registered at the front desk in under a minute — or triaged on the Emergency board the moment they come through the door.', 'ambulance'],
+    ['Arrival', 'Registered at the front desk in under a minute, or triaged on the Emergency board the moment they come through the door.', 'ambulance'],
     ['Doctor', 'Vitals, history and diagnosis in one note, with medicines and tests ordered in the same step.', 'stethoscope'],
     ['Lab & pharmacy', 'Orders appear at both counters instantly. Results and critical values flow back to the doctor.', 'flask'],
     ['Ward & nursing', 'Admitted to a free bed. Nurses record every dose, note and fluid on the eMAR.', 'syringe'],
@@ -71,21 +71,22 @@ const SAFETY = [
     ['alert', 'Allergy check on every prescription', 'Prescribing a drug the patient is allergic to stops and asks for a deliberate override.'],
     ['users', 'Two-person approvals', 'Purchase orders, expenses and leave can never be approved by the person who raised them.'],
     ['bell', 'Critical alerts', 'Triage level 1–2 arrivals and critical lab values notify doctors immediately.'],
-    ['eye', 'Chart access log', 'Every time a record is opened it is logged — who, when and from where.'],
+    ['eye', 'Chart access log', 'Every time a record is opened it is logged: who, when and from where.'],
     ['lock', 'Role-based access', 'Eleven roles. Each person sees what their job needs and nothing more.'],
     ['shield', 'Hospital-level isolation', 'Every record belongs to one hospital and every request is checked against it.'],
 ];
 
 const ROLES = [
-    ['Doctors', 'Their own queue, the full record, one form for notes, medicines and tests.', 'stethoscope'],
-    ['Emergency team', 'A live triage board, waiting timers, bays and one-click admission.', 'ambulance'],
-    ['Nurses', 'Medication round, dose recording, nursing notes and fluid balance.', 'syringe'],
-    ['Front desk', 'Register, book, check in and take payment from one screen.', 'users'],
-    ['Pharmacy', 'A live prescription queue and stock that counts itself down.', 'pill'],
-    ['Laboratory', 'Urgent orders first; results go straight back to the doctor and patient.', 'flask'],
-    ['Accounts', 'Collections, claims, expense approvals, P&L and reports.', 'wallet'],
-    ['Store', 'Stock levels, reorder alerts, suppliers and goods received.', 'box'],
-    ['HR', 'Leave approvals, attendance and the staff roster.', 'briefcase'],
+    ['admin', 'Administrator', 'The whole hospital at a glance: every module, reports, finance and settings.', 'hospital', 'Olivia Bennett'],
+    ['doctor', 'Doctor', 'Their own queue, the full record, one form for notes, medicines and tests.', 'stethoscope', 'Dr. Sarah Mitchell'],
+    ['nurse', 'Nurse', 'Medication round, dose recording, nursing notes, fluid balance and the ER board.', 'syringe', 'Grace Lee, RN'],
+    ['receptionist', 'Front desk', 'Register, book, check in, triage arrivals and take payment from one screen.', 'users', 'Chloe Adams'],
+    ['pharmacist', 'Pharmacy', 'A live prescription queue and stock that counts itself down.', 'pill', 'Ryan Patel'],
+    ['lab_technician', 'Laboratory', 'STAT and urgent orders first. Results go straight back to the doctor.', 'flask', 'Sofia Martinez'],
+    ['accountant', 'Accounts', 'Collections, insurance claims, expense approvals, P&L and reports.', 'wallet', 'Rachel Diaz'],
+    ['storekeeper', 'Store', 'Stock levels, reorder alerts, suppliers and goods received.', 'box', 'Jason Park'],
+    ['hr_manager', 'HR', 'Leave approvals, attendance and the staff roster.', 'briefcase', 'Laura Kim'],
+    ['patient', 'Patient', 'Appointments, results, prescriptions and bills in the patient portal.', 'heart', 'Ava Brooks'],
 ];
 
 const FAQ = [
@@ -140,7 +141,7 @@ function Nav() {
     const [open, setOpen] = useState(false);
     useMotionValueEvent(scrollY, 'change', (y) => setSolid(y > window.innerHeight * 0.7));
     const link = `rounded-full px-3.5 py-2 text-[15px] font-semibold transition ${solid ? 'text-pencil hover:text-ink-deep' : 'text-white/70 hover:text-white'}`;
-    const items = [['#modules', 'Platform'], ['#showcase', 'Tour'], ['#safety', 'Safety'], ['#pricing', 'Pricing'], ['#faq', 'FAQ']];
+    const items = [['#modules', 'Platform'], ['#showcase', 'Tour'], ['#demo', 'Live demo'], ['#pricing', 'Pricing'], ['#faq', 'FAQ']];
 
     return (
         <header className="fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-5">
@@ -209,15 +210,15 @@ function Hero() {
                     </h1>
                     <motion.p initial={reduce ? false : { opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6, duration: 0.7, ease: EASE }}
                         className="mt-7 max-w-xl text-lg leading-8 text-white/70 sm:text-xl sm:leading-9">
-                        Emergency to discharge, pharmacy to payroll-ready attendance — fifteen modules on one patient record, in one calm, fast system your whole team will actually enjoy using.
+                        Emergency to discharge, pharmacy to payroll-ready attendance. Fifteen modules on one patient record, in one calm, fast system your whole team will actually enjoy using.
                     </motion.p>
                     <motion.div initial={reduce ? false : { opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.75, duration: 0.7, ease: EASE }} className="mt-10 flex flex-col gap-3 sm:flex-row">
                         <Link to="/register" className="group relative inline-flex h-14 items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-[#14b8a6] to-[#06b6d4] px-8 text-[17px] font-bold text-white shadow-[0_20px_50px_-15px_rgba(20,184,166,.9)] transition hover:shadow-[0_24px_60px_-12px_rgba(34,211,238,.9)]">
                             <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/35 to-transparent transition-transform duration-700 group-hover:translate-x-full" aria-hidden />
                             Start your free trial<Icon name="arrowRight" size={20} className="transition group-hover:translate-x-1" />
                         </Link>
-                        <a href="#showcase" className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-white/[.06] px-7 text-[17px] font-bold text-white ring-1 ring-white/20 backdrop-blur transition hover:bg-white/10">
-                            <Icon name="play" size={18} />Take the tour
+                        <a href="#demo" className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-white/[.06] px-7 text-[17px] font-bold text-white ring-1 ring-white/20 backdrop-blur transition hover:bg-white/10">
+                            <Icon name="play" size={18} />Try the live demo
                         </a>
                     </motion.div>
                     <motion.ul initial={reduce ? false : { opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1, duration: 0.8 }} className="mt-9 flex flex-wrap gap-x-7 gap-y-2 text-[15px] text-white/60">
@@ -300,7 +301,7 @@ function Suites() {
 
     return (
         <section id="modules" ref={ref} className="mx-auto max-w-6xl scroll-mt-24 px-5 pt-16 pb-24 sm:px-8 lg:pb-32">
-            <SectionTitle eyebrow="The platform" title="Fifteen modules. One patient record." text="Nothing is typed twice and nothing gets lost between departments — every module writes to the same chart." />
+            <SectionTitle eyebrow="The platform" title="Fifteen modules. One patient record." text="Nothing is typed twice and nothing gets lost between departments. Every module writes to the same chart." />
 
             <div className="mt-12 flex gap-2 overflow-x-auto pb-2" role="tablist" aria-label="Suites">
                 {SUITES.map((x, k) => (
@@ -418,7 +419,7 @@ function ChartPreview() {
 function TriagePreview() {
     const [sec, setSec] = useState(0);
     useEffect(() => { const t = setInterval(() => setSec((x) => x + 1), 1000); return () => clearInterval(t); }, []);
-    const rows = [[1, 'bg-red-500 text-white', 'Noah Hill', 'Chest pain, sweating', 4, 'Resus 1'], [2, 'bg-orange-500 text-white', 'Unknown Patient', 'RTA — head injury', 9, 'Bay 2'], [3, 'bg-amber-400 text-amber-950', 'Mia Cole', 'Fever 103°F, cough', 26, 'Bay 5'], [4, 'bg-emerald-500 text-white', 'Liam Reed', 'Ankle sprain', 41, null]];
+    const rows = [[1, 'bg-red-500 text-white', 'Noah Hill', 'Chest pain, sweating', 4, 'Resus 1'], [2, 'bg-orange-500 text-white', 'Unknown Patient', 'RTA, head injury', 9, 'Bay 2'], [3, 'bg-amber-400 text-amber-950', 'Mia Cole', 'Fever 103°F, cough', 26, 'Bay 5'], [4, 'bg-emerald-500 text-white', 'Liam Reed', 'Ankle sprain', 41, null]];
     return (
         <div>
             <motion.div {...stagger(0)} className="grid grid-cols-4 gap-2 text-center">
@@ -525,9 +526,9 @@ function Showcase() {
                 <div className="pointer-events-none absolute top-20 right-0 h-80 w-80 rounded-full bg-[#0d9488]/30 blur-[100px]" aria-hidden />
                 <SectionTitle dark eyebrow="See it working" title="Built for the busiest hour of the day." text="Every screen answers the question that matters right now: who’s next, which bed is free, what’s critical, who still owes." />
                 <div className="relative mt-14 grid gap-4 md:grid-cols-6">
-                    <Bento className="md:col-span-4" title="Live waiting room" text="Tokens, check-in and who’s with the doctor — updated automatically."><Queue /></Bento>
+                    <Bento className="md:col-span-4" title="Live waiting room" text="Tokens, check-in and who’s with the doctor, updated automatically."><Queue /></Bento>
                     <Bento className="md:col-span-2" title="Bed board" text="Every ward at a glance."><Beds /></Bento>
-                    <Bento className="md:col-span-3" title="Medication round" text="Every dose recorded at the bedside — given, held or refused."><Emar /></Bento>
+                    <Bento className="md:col-span-3" title="Medication round" text="Every dose recorded at the bedside: given, held or refused."><Emar /></Bento>
                     <Bento className="md:col-span-3" title="Two-person approvals" text="Orders and expenses wait for a second signature."><Approvals /></Bento>
                     <Bento className="md:col-span-2" title="Vitals trend" text="Spot the change before it’s a problem."><Vitals /></Bento>
                     <Bento className="md:col-span-2" title="Critical results" text="Doctors are alerted the moment a value is flagged."><Critical /></Bento>
@@ -678,7 +679,7 @@ function Journey() {
     const height = useSpring(useTransform(scrollYProgress, [0, 1], ['0%', '100%']), { stiffness: 120, damping: 30 });
     return (
         <section id="journey" className="mx-auto max-w-6xl scroll-mt-20 px-5 py-24 sm:px-8 lg:py-32">
-            <SectionTitle eyebrow="How it works" title="From the front door to the final bill." text="Each step hands over to the next by itself. Charges are added as care happens, so the bill is ready when the patient is — and management sees it the same day." />
+            <SectionTitle eyebrow="How it works" title="From the front door to the final bill." text="Each step hands over to the next by itself. Charges are added as care happens, so the bill is ready when the patient is, and management sees it the same day." />
             <div ref={ref} className="relative mt-16">
                 <div className="absolute top-0 bottom-0 left-6 w-[3px] rounded-full bg-rule md:left-1/2 md:-translate-x-1/2" aria-hidden />
                 <motion.div style={{ height }} className="absolute top-0 left-6 w-[3px] rounded-full bg-gradient-to-b from-[#14b8a6] to-[#22d3ee] md:left-1/2 md:-translate-x-1/2" aria-hidden />
@@ -706,7 +707,7 @@ function Safety() {
         <section id="safety" className="scroll-mt-24 bg-white">
             <div className="mx-auto grid max-w-6xl items-center gap-12 px-5 py-24 sm:px-8 lg:grid-cols-[1fr_1.15fr] lg:py-32">
                 <div>
-                    <SectionTitle eyebrow="Safety & control" title="Guardrails built into every screen." text="The checks a good hospital does on paper — done automatically, every time, and recorded." />
+                    <SectionTitle eyebrow="Safety & control" title="Guardrails built into every screen." text="The checks a good hospital does on paper, done automatically, every time, and recorded." />
                     <Reveal delay={0.1} className="mt-8">
                         <AllergyDemo />
                     </Reveal>
@@ -750,7 +751,7 @@ function AllergyDemo() {
                 {phase >= 1 && (
                     <motion.div initial={{ opacity: 0, y: -6, height: 0 }} animate={{ opacity: 1, y: 0, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
                         <div className="mt-3 rounded-xl bg-[#e5484d]/15 p-3.5 ring-1 ring-[#e5484d]/50">
-                            <p className="font-bold text-[#fda4af]">⚠ Allergy alert — Penicillin (severe)</p>
+                            <p className="font-bold text-[#fda4af]">⚠ Allergy alert: Penicillin (severe)</p>
                             <p className="mt-0.5 text-sm text-white/70">Amoxicillin is a penicillin. Confirm to prescribe anyway.</p>
                         </div>
                     </motion.div>
@@ -781,18 +782,59 @@ function Stats() {
 }
 
 function Roles() {
+    const navigate = useNavigate();
+    const reduce = useReducedMotion();
+    const [demo, setDemo] = useState(null);
+    const [busy, setBusy] = useState(null);
+    const [error, setError] = useState('');
+    useEffect(() => { api('demo').then(setDemo).catch(() => setDemo({ available: false })); }, []);
+
+    async function enter(role) {
+        setBusy(role); setError('');
+        try {
+            const slug = demo?.slug ?? 'demo';
+            const res = await api('demo/login', { method: 'POST', tenant: slug, body: { role }, token: null });
+            session.save(slug, res.token);
+            navigate(`/${slug}`);
+        } catch (e) {
+            setError(e.status === 404 ? 'The demo is being refreshed. Please try again in a minute.' : e.message);
+            setBusy(null);
+        }
+    }
+    const ready = demo?.available;
+
     return (
-        <section className="mx-auto max-w-6xl px-5 py-24 sm:px-8 lg:py-32">
-            <SectionTitle center eyebrow="For every role" title="The right screen for every job." text="Everyone signs in to the same hospital and sees exactly what their role needs." />
-            <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {ROLES.map(([title, text, icon], i) => (
-                    <Reveal key={title} delay={(i % 3) * 0.08}>
-                        <div className="group flex h-full gap-4 rounded-3xl bg-white p-6 ring-1 ring-black/[.04] shadow-[0_20px_40px_-28px_rgba(10,47,58,.3)] transition hover:-translate-y-1">
-                            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-ink-50 text-ink transition group-hover:bg-ink group-hover:text-white"><Icon name={icon} size={21} /></span>
-                            <div><h3 className="text-lg font-bold">{title}</h3><p className="mt-1 text-pencil">{text}</p></div>
-                        </div>
-                    </Reveal>
-                ))}
+        <section id="demo" className="relative scroll-mt-24 overflow-hidden">
+            <div className="pointer-events-none absolute inset-x-0 top-20 mx-auto h-72 max-w-4xl rounded-full bg-gradient-to-r from-[#2dd4bf]/20 via-[#22d3ee]/15 to-[#818cf8]/20 blur-3xl" aria-hidden />
+            <div className="relative mx-auto max-w-6xl px-5 py-24 sm:px-8 lg:py-32">
+                <SectionTitle center eyebrow="Live demo" title="Step inside Mercy General." text="A working demo hospital full of patients, beds, ER arrivals, bills and claims. Pick a role and you are in. No sign-up." />
+                <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                    {ROLES.map(([role, title, text, icon, person], i) => (
+                        <Reveal key={role} delay={(i % 5) * 0.06}>
+                            <motion.button type="button" disabled={!ready || !!busy} onClick={() => enter(role)} whileHover={reduce || !ready ? undefined : { y: -6 }} whileTap={ready ? { scale: 0.98 } : undefined}
+                                className="group relative flex h-full w-full flex-col overflow-hidden rounded-3xl bg-white p-5 text-left ring-1 ring-black/[.05] shadow-[0_20px_40px_-28px_rgba(10,47,58,.35)] transition hover:ring-[#14b8a6]/50 hover:shadow-[0_30px_60px_-30px_rgba(13,148,136,.55)] disabled:cursor-default">
+                                <span className="pointer-events-none absolute -top-16 -right-16 h-32 w-32 rounded-full bg-gradient-to-br from-[#2dd4bf]/0 to-[#22d3ee]/0 blur-2xl transition duration-500 group-hover:from-[#2dd4bf]/40 group-hover:to-[#22d3ee]/30" aria-hidden />
+                                <span className="relative grid h-11 w-11 place-items-center rounded-2xl bg-ink-50 text-ink transition group-hover:bg-gradient-to-br group-hover:from-[#14b8a6] group-hover:to-[#06b6d4] group-hover:text-white"><Icon name={icon} size={21} /></span>
+                                <h3 className="relative mt-4 text-lg font-bold text-ink-deep">{title}</h3>
+                                <p className="relative mt-1 flex-1 text-[14px] leading-relaxed text-pencil">{text}</p>
+                                <span className="relative mt-4 flex items-center justify-between border-t border-rule pt-3 text-sm">
+                                    <span className="truncate text-pencil">{person}</span>
+                                    <span className="flex shrink-0 items-center gap-1 font-bold text-ink">
+                                        {busy === role ? 'Opening…' : ready ? <>Open<Icon name="arrowRight" size={15} className="transition group-hover:translate-x-1" /></> : 'Soon'}
+                                    </span>
+                                </span>
+                            </motion.button>
+                        </Reveal>
+                    ))}
+                </div>
+                {error && <p role="alert" className="mt-5 text-center font-semibold text-margin">{error}</p>}
+                <Reveal className="mx-auto mt-8 max-w-3xl">
+                    <div className="flex flex-col items-center justify-between gap-3 rounded-2xl bg-[#04161c] px-5 py-4 text-sm text-white/75 sm:flex-row">
+                        <p><span className="font-bold text-white">Prefer to sign in?</span> Go to <Link to="/demo/login" className="font-mono text-[#5eead4] hover:underline">/demo</Link> with any email like <span className="font-mono text-white">doctor@{demo?.accounts?.[0]?.email?.split('@')[1] ?? 'hospitalos.demo'}</span></p>
+                        <p className="shrink-0">Password <span className="rounded-md bg-white/10 px-2 py-0.5 font-mono font-bold text-white">{demo?.password ?? 'demo1234'}</span></p>
+                    </div>
+                    <p className="mt-3 text-center text-sm text-pencil">Everyone shares the demo and it resets every night. All patients and staff are fictional.</p>
+                </Reveal>
             </div>
         </section>
     );
@@ -896,7 +938,7 @@ function Footer() {
             <div className="mx-auto grid max-w-6xl gap-10 px-5 py-14 sm:px-8 md:grid-cols-[1.5fr_1fr_1fr_1fr]">
                 <div>
                     <Logo />
-                    <p className="mt-3 max-w-xs text-pencil">The hospital operating system — clinical care, emergency, wards, diagnostics, revenue and operations in one place.</p>
+                    <p className="mt-3 max-w-xs text-pencil">The hospital operating system for clinical care, emergency, wards, diagnostics, revenue and operations in one place.</p>
                     <p className="mt-4 text-sm text-pencil">A product of <a href="https://www.ferasolution.com" className="font-bold text-graphite hover:text-ink">Fera Solution</a></p>
                 </div>
                 {[

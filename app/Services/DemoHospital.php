@@ -194,10 +194,24 @@ class DemoHospital
             DB::table('personal_access_tokens')->where('tokenable_type', (new User)->getMorphClass())
                 ->whereIn('tokenable_id', DB::table('users')->where('tenant_id', $tenant->id)->select('id'))->delete();
 
+            // Foreign-key checks can't be switched off inside a transaction on every
+            // database, so delete in passes: a table that is still referenced is
+            // retried after the tables that point at it have been emptied.
+            $tables = [];
             foreach (Schema::getTableListing() as $table) {
                 $table = str_contains($table, '.') ? substr($table, strrpos($table, '.') + 1) : $table;
                 if (! in_array($table, ['tenants', 'users'], true) && Schema::hasColumn($table, 'tenant_id')) {
-                    DB::table($table)->where('tenant_id', $tenant->id)->delete();
+                    $tables[] = $table;
+                }
+            }
+            for ($pass = 0; $tables && $pass < 12; $pass++) {
+                foreach ($tables as $k => $table) {
+                    try {
+                        DB::table($table)->where('tenant_id', $tenant->id)->delete();
+                        unset($tables[$k]);
+                    } catch (\Illuminate\Database\QueryException) {
+                        // Still referenced; try again next pass.
+                    }
                 }
             }
             DB::table('users')->where('tenant_id', $tenant->id)->delete();
@@ -630,7 +644,7 @@ class DemoHospital
         $er = Bed::where('number', 'like', 'E-%')->orderBy('number')->get()->values();
         $board = [
             [1, 1, 'ambulance', 'Crushing chest pain radiating to left arm, sweating', 9, 'in_treatment', $this->doctors[4], 'Resus 1', ['bp' => '88/56', 'pulse' => 128, 'spo2' => 91, 'gcs' => 14], 'STEMI pathway activated'],
-            [null, 2, 'walk_in', 'Sudden slurred speech and right arm weakness', 22, 'in_treatment', $this->doctors[4], 'Bay 2', ['bp' => '182/104', 'pulse' => 96, 'spo2' => 97, 'sugar' => 132], 'Stroke — onset 40 min'],
+            [null, 2, 'walk_in', 'Sudden slurred speech and right arm weakness', 22, 'in_treatment', $this->doctors[4], 'Bay 2', ['bp' => '182/104', 'pulse' => 96, 'spo2' => 97, 'sugar' => 132], 'Stroke, onset 40 min'],
             [24, 3, 'walk_in', 'High fever and productive cough for 4 days', 48, 'observation', $this->doctors[1], 'Bay 4', ['temperature' => 102.8, 'pulse' => 108, 'spo2' => 94], null],
             [27, null, 'walk_in', 'Laceration to the forearm from broken glass', 6, 'waiting', null, null, null, null],
             [3, 4, 'walk_in', 'Twisted ankle playing soccer, unable to bear weight', 71, 'waiting', null, null, ['pain' => 6], null],

@@ -40,7 +40,7 @@ class DashboardController extends Controller
             'waiting' => (clone $todayAppts)->where('status', 'checked_in')->count(),
             'completed' => (clone $todayAppts)->where('status', 'completed')->count(),
         ];
-        $out['queue'] = (clone $todayAppts)->with(['patient', 'doctor:id,name'])
+        $out['queue'] = (clone $todayAppts)->with(['patient', 'doctor:id,name', 'department:id,name'])
             ->whereIn('status', ['scheduled', 'checked_in', 'in_progress'])
             ->orderByRaw("case status when 'in_progress' then 0 when 'checked_in' then 1 else 2 end")
             ->orderBy('scheduled_at')->limit(12)->get()

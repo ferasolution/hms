@@ -216,6 +216,16 @@ export default function TenantLayout() {
                     pages={groups.flatMap((g) => g.links).map((l) => ({ label: l.label, icon: l.icon, to: l.to })).concat([{ label: 'Your profile', icon: 'user', to: `/${tenant}/profile` }])} />
 
                 <main className="min-w-0">
+                    {me.tenant.settings?.demo && (
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 bg-gradient-to-r from-[#04161c] via-[#0b3a44] to-[#04161c] px-4 py-2.5 text-sm text-white/85 sm:px-8 lg:px-12 print:hidden">
+                            <span className="flex items-center gap-2 font-bold text-white"><span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#2dd4bf] opacity-75" /><span className="relative inline-flex h-2 w-2 rounded-full bg-[#2dd4bf]" /></span>Demo hospital</span>
+                            <span className="hidden sm:inline">You are signed in as <b className="text-white">{me.user.name}</b>. Everything here is fictional and resets every night.</span>
+                            <span className="ml-auto flex items-center gap-2">
+                                <button type="button" onClick={signOut} className="rounded-lg px-2.5 py-1 font-semibold text-white/80 hover:bg-white/10 hover:text-white">Switch role</button>
+                                <Link to="/register" className="rounded-lg bg-[#2dd4bf] px-3 py-1 font-bold text-[#04161c] hover:bg-[#5eead4]">Create your own hospital</Link>
+                            </span>
+                        </div>
+                    )}
                     <motion.div key={location.pathname} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
                         className="mx-auto max-w-6xl px-4 py-8 sm:px-8 lg:px-12 lg:py-10 print:max-w-none print:p-0">
                         <Outlet context={ctx} />

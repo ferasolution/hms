@@ -31,7 +31,7 @@ class MetaController extends Controller
             'name' => $tenant->name,
             'slug' => $tenant->slug,
             'type' => $tenant->type,
-            'settings' => (object) collect($tenant->settings ?? [])->only(['brand', 'logo_url', 'welcome_message', 'support_email', 'support_phone', 'address'])->all(),
+            'settings' => (object) collect($tenant->settings ?? [])->only(['brand', 'logo_url', 'welcome_message', 'support_email', 'support_phone', 'address', 'demo'])->all(),
         ]);
     }
 }

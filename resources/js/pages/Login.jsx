@@ -6,6 +6,7 @@ import Icon from '../components/Icon';
 import { Button, EmptyState, Field, Skeleton } from '../components/ui';
 
 const TYPE_ICON = { hospital: 'hospital', clinic: 'stethoscope', diagnostic: 'flask' };
+const DEMO_ROLES = [['admin', 'Admin'], ['doctor', 'Doctor'], ['nurse', 'Nurse'], ['receptionist', 'Front desk'], ['pharmacist', 'Pharmacy'], ['lab_technician', 'Lab'], ['accountant', 'Accounts'], ['storekeeper', 'Store'], ['hr_manager', 'HR'], ['patient', 'Patient']];
 
 export default function Login() {
     const { tenant } = useParams();
@@ -21,6 +22,19 @@ export default function Login() {
             .then(setInfo)
             .catch((err) => setInfo({ missing: err.status === 404, blocked: err.status === 403, message: err.message }));
     }, [tenant]);
+
+    async function demoAs(role) {
+        setBusy(true);
+        setError(null);
+        try {
+            const res = await api('demo/login', { method: 'POST', body: { role }, tenant, token: null });
+            session.save(tenant, res.token);
+            navigate(`/${tenant}`);
+        } catch (err) {
+            setError(err);
+            setBusy(false);
+        }
+    }
 
     async function submit(e) {
         e.preventDefault();
@@ -61,6 +75,18 @@ export default function Login() {
                     <p className="font-bold text-pencil lg:hidden">{info.name}</p>
                     <h1 className="text-3xl font-extrabold">Welcome back</h1>
                     <p className="mt-2 text-pencil">Sign in to <span className="font-bold text-graphite">{info.name}</span>.</p>
+
+                    {info.settings?.demo && (
+                        <div className="mt-6 rounded-2xl bg-ink-50 p-4 ring-1 ring-ink/10">
+                            <p className="text-sm font-bold text-ink-deep">Demo hospital · open as</p>
+                            <div className="mt-2 flex flex-wrap gap-1.5">
+                                {DEMO_ROLES.map(([role, label]) => (
+                                    <button key={role} type="button" disabled={busy} onClick={() => demoAs(role)} className="rounded-full bg-white px-3 py-1.5 text-sm font-bold text-ink ring-1 ring-ink/15 transition hover:bg-ink hover:text-white disabled:opacity-60">{label}</button>
+                                ))}
+                            </div>
+                            <p className="mt-2 text-xs text-pencil">Or sign in below with e.g. <span className="font-mono">doctor@hospitalos.demo</span> and password <span className="font-mono font-bold">demo1234</span>.</p>
+                        </div>
+                    )}
 
                     <form onSubmit={submit} className="mt-8 space-y-5" noValidate>
                         <Field label="Email" name="email" type="email" error={error} autoComplete="email" value={form.email}
