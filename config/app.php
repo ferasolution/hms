@@ -100,6 +100,8 @@ return [
     'key' => env('APP_KEY'),
 
     // Secret for the FTP post-deploy hook (POST /api/deploy-hook). Leave empty to disable it.
+    'demo_enabled' => (bool) env('DEMO_ENABLED', true),
+
     'deploy_token' => env('DEPLOY_TOKEN'),
 
     'previous_keys' => [

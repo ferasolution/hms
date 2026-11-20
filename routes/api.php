@@ -46,6 +46,7 @@ Route::post('deploy-hook', DeployController::class);
 |--------------------------------------------------------------------------
 */
 Route::get('plans', [MetaController::class, 'plans']);
+Route::get('demo', [\App\Http\Controllers\Api\DemoController::class, 'show']);
 
 Route::post('register-hospital', [TenantRegistrationController::class, 'store'])
     ->middleware('throttle:5,1');
@@ -92,9 +93,10 @@ Route::prefix('platform')->group(function () {
 |--------------------------------------------------------------------------
 | Roles: admin · doctor · nurse · receptionist · pharmacist · lab_technician · accountant · patient
 */
-Route::middleware('tenant')->group(function () {
+Route::middleware(['tenant', 'demo'])->group(function () {
     Route::get('tenant', [MetaController::class, 'tenant']);
     Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
+    Route::post('demo/login', [\App\Http\Controllers\Api\DemoController::class, 'login'])->middleware('throttle:20,1');
 
     Route::middleware(['auth:sanctum', 'role'])->group(function () {
         Route::get('auth/me', [AuthController::class, 'me']);

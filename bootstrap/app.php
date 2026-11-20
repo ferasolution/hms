@@ -27,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'tenant' => ResolveTenant::class,
             'role' => EnsureRole::class,
             'module' => \App\Http\Middleware\EnsureModule::class,
+            'demo' => \App\Http\Middleware\DemoGuard::class,
         ]);
 
         // The tenant must be known BEFORE authentication and route-model binding,

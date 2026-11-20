@@ -61,6 +61,16 @@ class DeployController extends Controller
             }
         }
 
+        // Refresh the public demo hospital so its dates are current. Not fatal.
+        if (config('app.demo_enabled', true)) {
+            try {
+                $code = Artisan::call('hms:demo');
+                $log[] = ['command' => 'hms:demo', 'ok' => $code === 0, 'output' => trim(Artisan::output())];
+            } catch (Throwable $e) {
+                $log[] = ['command' => 'hms:demo', 'ok' => false, 'output' => $e->getMessage()];
+            }
+        }
+
         if (! file_exists(public_path('storage'))) {
             try {
                 Artisan::call('storage:link');

@@ -37,7 +37,7 @@ class AuthController extends Controller
 
         if (! $user->is_active) {
             throw ValidationException::withMessages([
-                'email' => 'Your account has been disabled. Please contact your institute.',
+                'email' => 'Your account has been disabled. Please contact your hospital.',
             ]);
         }
 
